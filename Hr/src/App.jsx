@@ -7,6 +7,7 @@ import { Routes,Route} from 'react-router-dom'
 import Recognition from './pages/Recognition'
 import Layout from './components/layout/Layout'
 import Profile1 from './pages/Profile1'
+import EmployeesPage from './pages/EmployeesPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Routes>
               <Route path="/profile" element={<Profile1/>}/>
               <Route path="/recognition" element={<Recognition/>}/>
+              <Route path='/employees' element={<EmployeesPage/>}/>
             </Routes>
           </Layout>       
       </div>
