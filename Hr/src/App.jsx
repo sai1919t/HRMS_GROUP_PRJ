@@ -6,6 +6,7 @@ import './App.css'
 import { Routes,Route} from 'react-router-dom'
 import Recognition from './pages/Recognition'
 import Layout from './components/layout/Layout'
+import Profile1 from './pages/Profile1'
 
 function App() {
   return (
@@ -13,7 +14,8 @@ function App() {
       <div>
           <Layout>
             <Routes>
-              <Route path="/" element={<Recognition/>}/>
+              <Route path="/profile" element={<Profile1/>}/>
+              <Route path="/recognition" element={<Recognition/>}/>
             </Routes>
           </Layout>       
       </div>
