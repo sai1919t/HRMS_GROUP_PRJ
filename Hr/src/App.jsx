@@ -10,6 +10,7 @@ import Profile1 from './pages/Profile1'
 import EmployeesPage from './pages/EmployeesPage'
 import Chat from './pages/Chat'
 import Home from './pages/Home'
+import Login from './pages/LogIn'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <div>
             <Routes>
               <Route path='/' element={<Home/>}/>
+              <Route path="/login" element={<Login/>}/>
               <Route path="/profile" element={<Layout><Profile1/></Layout>}/>
               <Route path="/recognition" element={<Layout><Recognition/></Layout>}/>
               <Route path='/employees' element={<Layout><EmployeesPage/></Layout>}/>

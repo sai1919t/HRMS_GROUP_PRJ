@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import flower from "../assets/flower.png";
 
-export default function CreateAccount() {
+const LogIn = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +50,7 @@ export default function CreateAccount() {
         <div className="flex flex-col md:flex-row">
           <div className="w-full md:w-2/3 p-6 sm:p-8 md:p-16 relative">
             <img
-              src={flower}
+              src="flower.png"
               alt="flower background"
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20 pointer-events-none md:hidden w-[75%]"
             />
@@ -117,7 +116,7 @@ export default function CreateAccount() {
 
           <div className="w-full md:w-1/2 flex items-center justify-end p-6 md:p-10 bg-transparent">
             <img
-              src={flower}
+              src="flower.png"
               alt="flower illustration"
               className="hidden md:block w-full md:max-w-[2800px] lg:max-w-[3200px] xl:max-w-[3800px] object-contain mr-0 scale-[1.4]"
             />
@@ -127,3 +126,5 @@ export default function CreateAccount() {
     </div>
   );
 }
+
+export default LogIn
