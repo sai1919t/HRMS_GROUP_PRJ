@@ -14,6 +14,7 @@ import Dashboard1 from './pages/Dashboard1'
 import ProfessionalEventsPage from './pages/ProfessionalEventsPage'
 import Feed from './pages/Feed'
 import Profile from './pages/Profile'
+import Login from './pages/LogIn'
 
 function App() {
   return (
@@ -21,7 +22,8 @@ function App() {
       <div>
             <Routes>
               <Route path='/' element={<Home/>}/>
-              <Route path="/login" element={<SignUp/>}/>
+              <Route path="/login" element={<Login/>}/>
+              <Route path="/Signup" element={<SignUp/>}/>
               <Route path="/dashboard" element={<Layout><Dashboard1/></Layout>}/>
               <Route path="/profile" element={<Layout><Profile/></Layout>}/>
               <Route path="/event" element={<Layout><ProfessionalEventsPage/></Layout>}/>
