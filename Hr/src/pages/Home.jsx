@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Home = () => {
   const [open, setOpen] = useState(false);
@@ -12,7 +13,7 @@ const Home = () => {
           <li className=" hover:text-blue-600 transition-all duration-300 cursor-pointer">Profile</li>
           <li className=" hover:text-blue-600 transition-all duration-300 cursor-pointer">Event</li>
           <li className=" hover:text-blue-600 transition-all duration-300 cursor-pointer">Chat</li>
-          <li className=" hover:text-blue-600 transition-all duration-300 cursor-pointer">Sign-In</li>
+          <li className=" hover:text-blue-600 transition-all duration-300 cursor-pointer"><Link to={"/login"}>Sign-In</Link></li>
         </ul>
         <div className="md:hidden pt-6 text-2xl" onClick={() => setOpen(!open)}>☰
           {open &&

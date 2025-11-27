@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Login() {
+    const navigate = useNavigate();
   useEffect(() => {
     const form = document.getElementById("loginForm");
     const emailInput = document.getElementById("Iemail");
@@ -42,6 +43,7 @@ export default function Login() {
       if (isValid) {
         alert("Login successful!");
         form.reset();
+        navigate("/dashboard");
       }
     };
 
@@ -151,13 +153,13 @@ export default function Login() {
                 </a>
               </div>
 
-              <button className="mt-4 w-full rounded-full bg-blue-600 text-white px-5 py-2 text-sm font-semibold hover:bg-blue-700">
-                Log in
-              </button>
+                <button className="mt-4 w-full rounded-full bg-blue-600 text-white px-5 py-2 text-sm font-semibold hover:bg-blue-700">
+                    Log in
+                </button>
 
               <div className="text-sm text-gray-600">
                 Don't have an account?{" "}
-                <Link to="/Create account" className="text-blue-400">
+                <Link to="/Signup" className="text-blue-400">
                   Create account
                 </Link>
               </div>

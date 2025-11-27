@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-const LogIn = () => {
+const SignUp = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -108,7 +108,7 @@ const LogIn = () => {
                 <label htmlFor="robot" className="text-sm text-black font-medium cursor-pointer">i am not a robot</label>
               </div>
 
-              <button type="submit" className="w-full max-w-[400px] bg-[#4a2cf0] text-white py-2 rounded-md font-medium hover:bg-[#3a20d1] transition-all text-sm sm:text-base">create account</button>
+              <Link to={"/dashboard"}><button type="submit" className="w-full max-w-[400px] bg-[#4a2cf0] text-white py-2 rounded-md font-medium hover:bg-[#3a20d1] transition-all text-sm sm:text-base">create account</button></Link>
 
               <p className="text-sm text-gray-800 text-center w-full max-w-[400px]">already have an account? <Link to="/login" className="font-bold text-black">log in</Link></p>
             </form>
@@ -127,4 +127,4 @@ const LogIn = () => {
   );
 }
 
-export default LogIn
+export default SignUp
