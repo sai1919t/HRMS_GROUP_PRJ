@@ -15,6 +15,8 @@ import ProfessionalEventsPage from './pages/ProfessionalEventsPage'
 import Feed from './pages/Feed'
 import Profile from './pages/Profile'
 import LogPage from './pages/LogPage'
+import Settings from './pages/Settings'
+
 
 
 function App() {
@@ -32,6 +34,7 @@ function App() {
               <Route path="/feed" element={<Layout><Feed/></Layout>}/>
               <Route path='/employees' element={<Layout><EmployeesPage/></Layout>}/>
               <Route path='/chat' element={<Layout><Chat/></Layout>}/>
+              <Route path='/settings' element={<Layout><Settings/></Layout>}/>
             </Routes>   
       </div>
     </>
