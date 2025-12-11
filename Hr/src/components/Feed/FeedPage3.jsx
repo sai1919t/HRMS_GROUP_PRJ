@@ -1,119 +1,258 @@
+import { useState, useEffect } from 'react';
+import * as employeeOfMonthService from '../../services/employeeOfMonthService';
+
 const FeedPage3 = ({ onNavigateBack }) => {
+    const [employeeData, setEmployeeData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [error, setError] = useState(null);
+
+    // Form state
+    const [formData, setFormData] = useState({
+        userId: '',
+        description: '',
+        month: '',
+        teamMembers: [{ userId: '', role: '' }]
+    });
+
+    useEffect(() => {
+        fetchEmployeeOfMonth();
+    }, []);
+
+    const fetchEmployeeOfMonth = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await employeeOfMonthService.getCurrentEmployeeOfMonth();
+            if (response.success) {
+                setEmployeeData(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching employee of the month:', error);
+            setError('Failed to load employee of the month');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            setError(null);
+            console.log('Fetching users...');
+            const response = await employeeOfMonthService.getAllUsers();
+            console.log('Users response:', response);
+            if (response.success) {
+                // Backend returns { success: true, users: [...] }
+                setUsers(response.users || []);
+                console.log('Users loaded:', response.users);
+            } else {
+                console.warn('Failed to fetch users:', response);
+                setUsers([]);
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            setError('Failed to load users');
+            setUsers([]);
+        }
+    };
+
+    const handleOpenModal = async () => {
+        console.log('Opening modal...');
+        setShowModal(true);
+        // Fetch users after opening modal to prevent blocking
+        await fetchUsers();
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        setFormData({
+            userId: '',
+            description: '',
+            month: '',
+            teamMembers: [{ userId: '', role: '' }]
+        });
+    };
+
+    const handleAddTeamMember = () => {
+        setFormData({
+            ...formData,
+            teamMembers: [...formData.teamMembers, { userId: '', role: '' }]
+        });
+    };
+
+    const handleRemoveTeamMember = (index) => {
+        const newTeamMembers = formData.teamMembers.filter((_, i) => i !== index);
+        setFormData({
+            ...formData,
+            teamMembers: newTeamMembers
+        });
+    };
+
+    const handleTeamMemberChange = (index, field, value) => {
+        const newTeamMembers = [...formData.teamMembers];
+        newTeamMembers[index][field] = value;
+        setFormData({
+            ...formData,
+            teamMembers: newTeamMembers
+        });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const teamMembers = formData.teamMembers.filter(
+                member => member.userId && member.role
+            );
+
+            await employeeOfMonthService.createEmployeeOfMonth(
+                parseInt(formData.userId),
+                formData.description,
+                formData.month,
+                teamMembers.map(member => ({
+                    userId: parseInt(member.userId),
+                    role: member.role
+                }))
+            );
+
+            handleCloseModal();
+            fetchEmployeeOfMonth();
+        } catch (error) {
+            console.error('Error creating employee of the month:', error);
+            alert('Failed to create employee of the month');
+        }
+    };
+
+    const handleDeleteTeamMember = async (teamMemberId) => {
+        if (window.confirm('Are you sure you want to remove this team member?')) {
+            try {
+                await employeeOfMonthService.deleteTeamMember(teamMemberId);
+                fetchEmployeeOfMonth();
+            } catch (error) {
+                console.error('Error deleting team member:', error);
+                alert('Failed to delete team member');
+            }
+        }
+    };
+
     return (
         <div className="p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <button
-                        onClick={onNavigateBack}
-                        className="text-gray-600 hover:text-gray-800"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-[#266ECD]">Feed</h1>
-                        <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed</p>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={onNavigateBack}
+                            className="text-gray-600 hover:text-gray-800"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-bold text-[#266ECD]">Feed</h1>
+                            <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed</p>
+                        </div>
                     </div>
+                    <button
+                        onClick={handleOpenModal}
+                        className="bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg"
+                    >
+                        Add New
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Employee of the Month Card */}
-                        <div className="bg-white rounded-3xl shadow-md p-8">
-                            {/* Header */}
-                            <div className="text-center mb-8">
-                                <h2 className="text-sm font-bold text-gray-700 tracking-widest uppercase">
-                                    Employee of the Month
-                                </h2>
+                        {loading ? (
+                            <div className="bg-white rounded-3xl shadow-md p-8 text-center">
+                                <p className="text-gray-500">Loading...</p>
                             </div>
-
-                            {/* Featured Employee */}
-                            <div className="text-center mb-8">
-                                <div className="inline-block mb-6">
-                                    <div className="w-40 h-40 rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
-                                        <div className="w-full h-full rounded-3xl overflow-hidden">
-                                            <img
-                                                src="https://i.pravatar.cc/200?img=33"
-                                                alt="Priyansh Laxmi"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
+                        ) : employeeData ? (
+                            <>
+                                {/* Employee of the Month Card */}
+                                <div className="bg-white rounded-3xl shadow-md p-8">
+                                    {/* Header */}
+                                    <div className="text-center mb-8">
+                                        <h2 className="text-sm font-bold text-gray-700 tracking-widest uppercase">
+                                            Employee of the Month
+                                        </h2>
                                     </div>
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-1">Priyansh Laxmi</h3>
-                            </div>
 
-                            {/* Description */}
-                            <div className="max-w-2xl mx-auto mb-8">
-                                <p className="text-gray-700 text-center leading-relaxed">
-                                    Your leadership sets the tone for excellence. The way you navigate challenges, support your team, and turn goals into achievements has truly elevated our entire workflow. Your ability to keep everyone aligned and motivated is nothing short of inspiring.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Team Section */}
-                        <div className="bg-white rounded-3xl shadow-md p-8">
-                            <h3 className="text-lg font-bold text-gray-800 mb-6">Team</h3>
-
-                            <div className="grid grid-cols-3 gap-6">
-                                {/* Team Member 1 */}
-                                <div className="text-center">
-                                    <div className="mb-4">
-                                        <div className="w-28 h-28 mx-auto rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
-                                            <div className="w-full h-full rounded-3xl overflow-hidden">
-                                                <img
-                                                    src="https://i.pravatar.cc/150?img=12"
-                                                    alt="Maxim Martian"
-                                                    className="w-full h-full object-cover"
-                                                />
+                                    {/* Featured Employee */}
+                                    <div className="text-center mb-8">
+                                        <div className="inline-block mb-6">
+                                            <div className="w-40 h-40 rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
+                                                <div className="w-full h-full rounded-3xl overflow-hidden">
+                                                    <img
+                                                        src={`https://i.pravatar.cc/200?u=${employeeData.user_email}`}
+                                                        alt={employeeData.user_name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-1">{employeeData.user_name}</h3>
+                                        <p className="text-sm text-gray-500">{employeeData.month}</p>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 text-sm mb-1">Maxim Martian</h4>
-                                    <p className="text-gray-500 text-xs">Project Manager</p>
+
+                                    {/* Description */}
+                                    <div className="max-w-2xl mx-auto mb-8">
+                                        <p className="text-gray-700 text-center leading-relaxed">
+                                            {employeeData.description}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                {/* Team Member 2 */}
-                                <div className="text-center">
-                                    <div className="mb-4">
-                                        <div className="w-28 h-28 mx-auto rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
-                                            <div className="w-full h-full rounded-3xl overflow-hidden">
-                                                <img
-                                                    src="https://i.pravatar.cc/150?img=45"
-                                                    alt="Marshell Laxmi"
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <h4 className="font-bold text-gray-900 text-sm mb-1">Marshell Laxmi</h4>
-                                    <p className="text-gray-500 text-xs">UI/UX Designer</p>
-                                </div>
+                                {/* Team Section */}
+                                {employeeData.team && employeeData.team.length > 0 && (
+                                    <div className="bg-white rounded-3xl shadow-md p-8">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-6">Team</h3>
 
-                                {/* Team Member 3 */}
-                                <div className="text-center">
-                                    <div className="mb-4">
-                                        <div className="w-28 h-28 mx-auto rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
-                                            <div className="w-full h-full rounded-3xl overflow-hidden">
-                                                <img
-                                                    src="https://i.pravatar.cc/150?img=68"
-                                                    alt="Mathew Marshall"
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
+                                        <div className="grid grid-cols-3 gap-6">
+                                            {employeeData.team.map((member) => (
+                                                <div key={member.id} className="text-center relative group">
+                                                    <button
+                                                        onClick={() => handleDeleteTeamMember(member.id)}
+                                                        className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Remove team member"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                    <div className="mb-4">
+                                                        <div className="w-28 h-28 mx-auto rounded-3xl overflow-hidden bg-white border border-gray-200 p-1">
+                                                            <div className="w-full h-full rounded-3xl overflow-hidden">
+                                                                <img
+                                                                    src={`https://i.pravatar.cc/150?u=${member.user_email}`}
+                                                                    alt={member.user_name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <h4 className="font-bold text-gray-900 text-sm mb-1">{member.user_name}</h4>
+                                                    <p className="text-gray-500 text-xs">{member.role}</p>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 text-sm mb-1">Mathew Marshall</h4>
-                                    <p className="text-gray-500 text-xs">Developer</p>
-                                </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="bg-white rounded-3xl shadow-md p-8 text-center">
+                                <p className="text-gray-500 mb-4">No employee of the month selected yet</p>
+                                <button
+                                    onClick={handleOpenModal}
+                                    className="bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg"
+                                >
+                                    Add Employee of the Month
+                                </button>
                             </div>
-                        </div>
+                        )}
                     </div>
 
-                    {/* Right Sidebar - Same as FeedPage2 */}
+                    {/* Right Sidebar - Same as before */}
                     <div className="space-y-6">
                         {/* New Point Alert */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
@@ -193,6 +332,160 @@ const FeedPage3 = ({ onNavigateBack }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-8">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900">Add Employee of the Month</h2>
+                                <button
+                                    onClick={handleCloseModal}
+                                    className="text-gray-500 hover:text-gray-700"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSubmit}>
+                                {/* Employee Selection */}
+                                <div className="mb-6">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-4">Employee Information</h3>
+
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Select Employee *
+                                        </label>
+                                        <select
+                                            value={formData.userId}
+                                            onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#266ECD]"
+                                            required
+                                        >
+                                            <option value="">Choose an employee</option>
+                                            {users.map((user) => (
+                                                <option key={user.id} value={user.id}>
+                                                    {user.fullname} ({user.email})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Month *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.month}
+                                            onChange={(e) => setFormData({ ...formData, month: e.target.value })}
+                                            placeholder="e.g., December 2025"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#266ECD]"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Description *
+                                        </label>
+                                        <textarea
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            placeholder="Write a description about why this employee deserves the recognition..."
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#266ECD] min-h-[120px]"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Team Members */}
+                                <div className="mb-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-gray-800">Team Members</h3>
+                                        <button
+                                            type="button"
+                                            onClick={handleAddTeamMember}
+                                            className="text-[#266ECD] font-semibold hover:underline"
+                                        >
+                                            + Add Team Member
+                                        </button>
+                                    </div>
+
+                                    {formData.teamMembers.map((member, index) => (
+                                        <div key={index} className="mb-4 p-4 border border-gray-200 rounded-xl">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-sm font-semibold text-gray-700">Team Member {index + 1}</span>
+                                                {formData.teamMembers.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveTeamMember(index)}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                                        Employee
+                                                    </label>
+                                                    <select
+                                                        value={member.userId}
+                                                        onChange={(e) => handleTeamMemberChange(index, 'userId', e.target.value)}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#266ECD] text-sm"
+                                                    >
+                                                        <option value="">Select employee</option>
+                                                        {users.map((user) => (
+                                                            <option key={user.id} value={user.id}>
+                                                                {user.fullname}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                                        Role
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={member.role}
+                                                        onChange={(e) => handleTeamMemberChange(index, 'role', e.target.value)}
+                                                        placeholder="e.g., Project Manager"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#266ECD] text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Submit Button */}
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseModal}
+                                        className="flex-1 px-6 py-3 border border-gray-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-6 py-3 bg-[#266ECD] text-white rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg"
+                                    >
+                                        Create
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

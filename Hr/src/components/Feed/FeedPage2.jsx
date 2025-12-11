@@ -1,7 +1,133 @@
-const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3 }) => {
+import { useState, useEffect } from 'react';
+import {
+    getAllAppreciations,
+    toggleLike,
+    deleteAppreciation,
+    addComment,
+    getComments
+} from '../../services/appreciationService';
+
+const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateForm }) => {
+    const [appreciations, setAppreciations] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [commentInputs, setCommentInputs] = useState({});
+    const [showComments, setShowComments] = useState({});
+    const [comments, setComments] = useState({});
+
+    // Fetch appreciations on component mount
+    useEffect(() => {
+        fetchAppreciations();
+    }, []);
+
+    const fetchAppreciations = async () => {
+        try {
+            setLoading(true);
+            const response = await getAllAppreciations();
+            if (response.success) {
+                setAppreciations(response.data);
+            }
+        } catch (err) {
+            setError('Failed to load appreciations');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLike = async (appreciationId) => {
+        try {
+            await toggleLike(appreciationId);
+            // Refresh appreciations to get updated like count
+            fetchAppreciations();
+        } catch (err) {
+            console.error('Error toggling like:', err);
+        }
+    };
+
+    const handleDelete = async (appreciationId) => {
+        if (window.confirm('Are you sure you want to delete this appreciation?')) {
+            try {
+                await deleteAppreciation(appreciationId);
+                // Remove from local state
+                setAppreciations(prev => prev.filter(a => a.id !== appreciationId));
+            } catch (err) {
+                alert('Failed to delete appreciation. You can only delete your own posts.');
+                console.error(err);
+            }
+        }
+    };
+
+    const handleCommentChange = (appreciationId, value) => {
+        setCommentInputs(prev => ({
+            ...prev,
+            [appreciationId]: value
+        }));
+    };
+
+    const handleAddComment = async (appreciationId) => {
+        const commentText = commentInputs[appreciationId];
+        if (!commentText || commentText.trim() === '') return;
+
+        try {
+            await addComment(appreciationId, commentText);
+            // Clear input
+            setCommentInputs(prev => ({
+                ...prev,
+                [appreciationId]: ''
+            }));
+            // Refresh appreciations
+            fetchAppreciations();
+            // Refresh comments if they're shown
+            if (showComments[appreciationId]) {
+                fetchComments(appreciationId);
+            }
+        } catch (err) {
+            alert('Failed to add comment');
+            console.error(err);
+        }
+    };
+
+    const toggleCommentsView = async (appreciationId) => {
+        const isCurrentlyShown = showComments[appreciationId];
+
+        setShowComments(prev => ({
+            ...prev,
+            [appreciationId]: !isCurrentlyShown
+        }));
+
+        // Fetch comments if showing
+        if (!isCurrentlyShown) {
+            fetchComments(appreciationId);
+        }
+    };
+
+    const fetchComments = async (appreciationId) => {
+        try {
+            const response = await getComments(appreciationId);
+            if (response.success) {
+                setComments(prev => ({
+                    ...prev,
+                    [appreciationId]: response.data
+                }));
+            }
+        } catch (err) {
+            console.error('Error fetching comments:', err);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    };
+
+    const formatTime = (dateString) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    };
+
     return (
         <div className="p-4 sm:p-8">
-
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -9,11 +135,25 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3 }) => {
                         <h1 className="text-xl font-bold text-[#266ECD]">Feed</h1>
                         <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed: Your Hub for Updates and Interaction</p>
                     </div>
-                    <button className="text-red-500 hover:text-red-600">
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                        </svg>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={onNavigateToCreateForm}
+                            className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>New</span>
+                        </button>
+                        <button
+                            onClick={fetchAppreciations}
+                            className="text-red-500 hover:text-red-600"
+                        >
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -32,181 +172,171 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3 }) => {
                             </button>
                         </div>
 
-                        {/* Appreciation Card 1 - Priyansh to Rakesh */}
-                        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-                            <div className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-400 to-indigo-500">
-                                            <img src="https://i.pravatar.cc/150?img=11" alt="PJ" className="w-full h-full rounded-full object-cover" />
+                        {/* Loading State */}
+                        {loading && (
+                            <div className="text-center py-12">
+                                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#266ECD]"></div>
+                                <p className="mt-4 text-gray-600">Loading appreciations...</p>
+                            </div>
+                        )}
+
+                        {/* Error State */}
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Appreciations List */}
+                        {!loading && !error && appreciations.length === 0 && (
+                            <div className="bg-white rounded-2xl shadow-md p-12 text-center">
+                                <p className="text-gray-500 text-lg">No appreciations yet. Be the first to create one!</p>
+                                <button
+                                    onClick={onNavigateToCreateForm}
+                                    className="mt-4 bg-[#266ECD] text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90"
+                                >
+                                    Create Appreciation
+                                </button>
+                            </div>
+                        )}
+
+                        {!loading && appreciations.filter(a => !a.points || a.points === 0).map((appreciation) => (
+                            <div key={appreciation.id} className="bg-white rounded-2xl shadow-md overflow-hidden">
+                                <div className="p-6">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+                                                {appreciation.sender_name?.charAt(0) || 'U'}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-900">{appreciation.sender_name}</p>
+                                                <p className="text-sm text-gray-500">{appreciation.sender_email}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-1">
+                                                APPRECIATED 🎉
+                                            </span>
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
+                                                {appreciation.recipient_name?.charAt(0) || 'U'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3 mb-5">
+                                        <span className="text-sm text-gray-600">to</span>
+                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
+                                            {appreciation.recipient_name?.charAt(0) || 'U'}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-gray-900">Priyansh Jadhav</p>
-                                            <p className="text-sm text-gray-500">HR Manager</p>
+                                            <p className="font-bold text-gray-900">{appreciation.recipient_name}</p>
+                                            <p className="text-sm text-gray-500">{appreciation.recipient_email}</p>
+                                        </div>
+                                        <div className="ml-auto flex items-center gap-3 text-sm text-gray-500">
+                                            <span>{formatDate(appreciation.created_at)}</span>
+                                            <span>{formatTime(appreciation.created_at)}</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-1">
-                                            APPRECIATED 🎉
-                                        </span>
-                                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-orange-400 to-red-500">
-                                            <img src="https://i.pravatar.cc/150?img=13" alt="RS" className="w-full h-full rounded-full object-cover" />
+
+                                    <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-5 shadow-md">
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <span className="text-3xl">{appreciation.emoji}</span>
+                                            <h3 className="text-xl font-bold text-teal-900">{appreciation.title}</h3>
                                         </div>
+                                        <div className="mb-4">
+                                            <span className="bg-teal-200 text-teal-900 px-4 py-1.5 rounded-full text-sm font-bold">
+                                                {appreciation.category}
+                                            </span>
+                                        </div>
+                                        <p className="text-gray-700 text-sm leading-relaxed">
+                                            {appreciation.message}
+                                        </p>
                                     </div>
-                                </div>
 
-                                <div className="flex items-center gap-3 mb-5">
-                                    <span className="text-sm text-gray-600">to</span>
-                                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-orange-400 to-red-500">
-                                        <img src="https://i.pravatar.cc/150?img=13" alt="RS" className="w-full h-full rounded-full object-cover" />
+                                    <div className="flex items-center gap-6">
+                                        <button
+                                            onClick={() => handleLike(appreciation.id)}
+                                            className={`flex items-center gap-2 ${appreciation.user_liked
+                                                ? 'text-purple-700'
+                                                : 'text-gray-500 hover:text-purple-700'
+                                                }`}
+                                        >
+                                            <svg className="w-6 h-6 fill-current" viewBox="0 0 20 20">
+                                                <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                                            </svg>
+                                            <span className="font-bold text-base">{appreciation.likes_count || 0}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => toggleCommentsView(appreciation.id)}
+                                            className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+                                        >
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                            </svg>
+                                            <span className="font-medium">{appreciation.comments_count || 0}</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(appreciation.id)}
+                                            className="ml-auto text-red-500 hover:text-red-700"
+                                            title="Delete appreciation"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-gray-900">Rakesh Sharma</p>
-                                        <p className="text-sm text-gray-500">Senior Developer</p>
-                                    </div>
-                                    <div className="ml-auto flex items-center gap-3 text-sm text-gray-500">
-                                        <span>03/16/2025</span>
-                                        <span>9:15 AM</span>
-                                    </div>
-                                </div>
 
-                                <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-5 shadow-md">
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <span className="text-3xl">🎊</span>
-                                        <h3 className="text-xl font-bold text-teal-900">Congratulations to Rakesh Sharma</h3>
-                                    </div>
-                                    <div className="mb-4">
-                                        <span className="bg-teal-200 text-teal-900 px-4 py-1.5 rounded-full text-sm font-bold">
-                                            Outstanding Performance
-                                        </span>
-                                    </div>
-                                    <p className="text-gray-700 text-sm leading-relaxed">
-                                        Rakesh's, your dedication and hard work have been instrumental in the successful launch of
-                                        Version 2.0 of our app. Your outstanding performance in all that it is significantly
-                                        appreciated. Keep up the great work!
-                                    </p>
-                                </div>
+                                    {/* Comments Section */}
+                                    {showComments[appreciation.id] && (
+                                        <div className="mt-6 pt-6 border-t border-gray-200">
+                                            <h4 className="font-bold text-gray-900 mb-4">Comments</h4>
 
-                                <div className="flex items-center gap-6">
-                                    <button className="flex items-center gap-2 text-purple-700 hover:text-purple-800">
-                                        <svg className="w-6 h-6 fill-current" viewBox="0 0 20 20">
-                                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                                        </svg>
-                                        <span className="font-bold text-base">2,450</span>
-                                    </button>
-                                    <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700">
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                        </svg>
-                                        <span className="font-medium">0</span>
-                                    </button>
-                                    <button className="ml-auto flex items-center gap-2 text-gray-600 hover:text-gray-800">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                        </svg>
-                                        <span className="text-sm font-medium">Send Love</span>
-                                    </button>
-                                    <button className="text-gray-500 hover:text-gray-700">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
-                                    <button className="text-gray-500 hover:text-gray-700">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                        </svg>
-                                    </button>
+                                            {/* Comment Input */}
+                                            <div className="flex gap-2 mb-4">
+                                                <input
+                                                    type="text"
+                                                    value={commentInputs[appreciation.id] || ''}
+                                                    onChange={(e) => handleCommentChange(appreciation.id, e.target.value)}
+                                                    onKeyPress={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            handleAddComment(appreciation.id);
+                                                        }
+                                                    }}
+                                                    placeholder="Add a comment..."
+                                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => handleAddComment(appreciation.id)}
+                                                    className="bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90"
+                                                >
+                                                    Post
+                                                </button>
+                                            </div>
+
+                                            {/* Comments List */}
+                                            <div className="space-y-3">
+                                                {comments[appreciation.id]?.map((comment) => (
+                                                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                                        <div className="flex items-start justify-between">
+                                                            <div>
+                                                                <p className="font-semibold text-sm text-gray-900">{comment.user_name}</p>
+                                                                <p className="text-sm text-gray-700 mt-1">{comment.comment}</p>
+                                                                <p className="text-xs text-gray-500 mt-1">
+                                                                    {formatDate(comment.created_at)} at {formatTime(comment.created_at)}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {(!comments[appreciation.id] || comments[appreciation.id].length === 0) && (
+                                                    <p className="text-sm text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Appreciation Card 2 - Alex to Bob */}
-                        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-                            <div className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-teal-400 to-cyan-500">
-                                            <img src="https://i.pravatar.cc/150?img=14" alt="AJ" className="w-full h-full rounded-full object-cover" />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900">Alex Johnson</p>
-                                            <p className="text-sm text-gray-500">Project Manager</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-1">
-                                            APPRECIATED 🎉
-                                        </span>
-                                        <div className="w-12 h-12 rounded-full bg-linear-to-br from-pink-400 to-rose-500">
-                                            <img src="https://i.pravatar.cc/150?img=15" alt="BS" className="w-full h-full rounded-full object-cover" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 mb-5">
-                                    <span className="text-sm text-gray-600">to</span>
-                                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-pink-400 to-rose-500">
-                                        <img src="https://i.pravatar.cc/150?img=15" alt="BS" className="w-full h-full rounded-full object-cover" />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-gray-900">Bob Smith</p>
-                                        <p className="text-sm text-gray-500">Senior Developer</p>
-                                    </div>
-                                    <div className="ml-auto flex items-center gap-3 text-sm text-gray-500">
-                                        <span>07/18/2025</span>
-                                        <span>10:45 PM</span>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-5 shadow-md">
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <span className="text-3xl">🙌</span>
-                                        <h3 className="text-xl font-bold text-teal-900">Stellar Teamwork</h3>
-                                    </div>
-                                    <div className="mb-4">
-                                        <span className="bg-teal-200 text-teal-900 px-4 py-1.5 rounded-full text-sm font-bold">
-                                            Team Collaboration
-                                        </span>
-                                    </div>
-                                    <p className="text-gray-700 text-sm leading-relaxed">
-                                        Kudos to Bob for outstanding teamwork on the recent project!
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-6">
-                                    <button className="flex items-center gap-2 text-purple-700 hover:text-purple-800">
-                                        <svg className="w-6 h-6 fill-current" viewBox="0 0 20 20">
-                                            <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
-                                        </svg>
-                                        <span className="font-bold text-base">2,450</span>
-                                    </button>
-                                    <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700">
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                        </svg>
-                                        <span className="font-medium">0</span>
-                                    </button>
-                                    <button className="ml-auto flex items-center gap-2 text-gray-600 hover:text-gray-800">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                        </svg>
-                                        <span className="text-sm font-medium">Send Love</span>
-                                    </button>
-                                    <button className="text-gray-500 hover:text-gray-700">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
-                                    <button className="text-gray-500 hover:text-gray-700">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        ))}
                     </div>
 
                     {/* Right Sidebar */}

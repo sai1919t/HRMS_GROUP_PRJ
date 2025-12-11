@@ -1,4 +1,4 @@
-import pkg from "pg";
+import pkg from "pg"; // pg package
 import dotenv from "dotenv";
 
 dotenv.config();

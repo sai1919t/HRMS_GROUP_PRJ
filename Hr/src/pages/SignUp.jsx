@@ -65,7 +65,7 @@ const SignUp = () => {
           if (typeof robot !== "undefined") robot.checked = false;
 
           // Redirect to dashboard
-          window.location.href = "/";
+          window.location.href = "/dashboard";
         } else {
           // Error - status 400 or 500
           if (response.status === 400 && data.message === "User already exists") {

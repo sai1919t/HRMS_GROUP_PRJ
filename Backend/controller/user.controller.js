@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { findUserByEmail } from "../models/user.model.js";
+import { findUserByEmail, getAllUsers as getAllUsersModel } from "../models/user.model.js";
 import { createUserService } from "../services/user.service.js";
 import { addToken } from "../models/blacklistedTokens.js";
 
@@ -94,6 +94,19 @@ export const logout = async (req, res) => {
         res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
         console.error("❌ Logout Error:", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const getAllUsers = async (req, res) => {
+    try {
+        const users = await getAllUsersModel();
+        res.status(200).json({
+            success: true,
+            users
+        });
+    } catch (error) {
+        console.error("❌ Get All Users Error:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };

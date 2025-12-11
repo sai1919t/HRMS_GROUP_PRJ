@@ -46,7 +46,7 @@ export default function LogPage() {
           await login(emailInput.value.trim(), passwordInput.value.trim());
           alert("Login successful!");
           form.reset();
-          navigate("/");
+          navigate("/dashboard");
         } catch (error) {
           alert(error.message);
         }
