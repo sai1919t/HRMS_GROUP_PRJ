@@ -17,6 +17,11 @@ import Feed from './pages/Feed'
 import Profile from './pages/Profile'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
+import RecruitmentLayout from "./pages/recruitment/RecruitmentLayout";
+import Applications from "./pages/recruitment/Applications";
+import Interviews from "./pages/recruitment/Interviews";
+import Offers from "./pages/recruitment/Offers";
+
 
 
 
@@ -37,6 +42,10 @@ function App() {
           <Route path='/employees' element={<ProtectedRoute><Layout><EmployeesPage /></Layout></ProtectedRoute>} />
           <Route path='/chat' element={<ProtectedRoute><Layout><Chat /></Layout></ProtectedRoute>} />
           <Route path='/settings' element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
+          <Route path="/recruitment" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
+          <Route path="/recruitment/applications" element={<ProtectedRoute><Layout><Applications /></Layout></ProtectedRoute>} />
+          <Route path="/recruitment/interviews" element={<ProtectedRoute><Layout><Interviews /></Layout></ProtectedRoute>} />
+          <Route path="/recruitment/offers" element={<ProtectedRoute><Layout><Offers /></Layout></ProtectedRoute>} />
         </Routes>
       </div>
     </>

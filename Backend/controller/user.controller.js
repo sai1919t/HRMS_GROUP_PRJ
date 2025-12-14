@@ -6,6 +6,7 @@ import { addToken } from "../models/blacklistedTokens.js";
 
 export const signup = async (req, res) => {
     try {
+        console.log("DATABASE_URL =", process.env.DATABASE_URL);
         const { fullname, email, password } = req.body;
 
         if (!fullname || !email || !password) {
