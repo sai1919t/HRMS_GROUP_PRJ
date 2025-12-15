@@ -28,10 +28,10 @@ function Dashboard1() {
             </div>
 
             <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <div className="w-full h-full">
+              <div className="w-full h-full mt-8">
                 <MeetingsUI />
               </div>
-              <div className="w-full h-full">
+              <div className="w-full h-full mt-8">
                 <EmpComposition />
               </div>
             </div>
