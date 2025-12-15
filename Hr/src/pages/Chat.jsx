@@ -1,67 +1,238 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import io from "socket.io-client";
+import axios from "axios";
+
+const socket = io.connect("http://localhost:3000");
 
 const Chat = () => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      name: 'Meg Griffin',
-      role: 'Web Dev,Django Guy',
-      message: 'Sent you a message',
-      time: '34m',
-      avatar: 'M',
-      unread: true,
-      status: 'online'
-    },
-    {
-      id: 2,
-      name: 'The Boyz',
-      role: 'joe68: sent a message',
-      message: 'Group message',
-      time: '34m',
-      avatar: 'B',
-      unread: true,
-      status: 'online'
-    },
-    {
-      id: 3,
-      name: 'Stewie Griffin',
-      role: 'Sent you a message',
-      message: 'Group message',
-      time: '17h',
-      avatar: 'S',
-      unread: false,
-      status: 'offline'
-    },
-    {
-      id: 4,
-      name: 'Glenn Quagmire',
-      role: 'The silence lmaoo',
-      message: 'Message',
-      time: '20h',
-      avatar: 'G',
-      unread: false,
-      status: 'offline'
-    },
-    {
-      id: 5,
-      name: 'Herbert',
-      role: 'Active',
-      message: 'Message',
-      time: '6m ago',
-      avatar: 'H',
-      unread: false,
-      status: 'online'
-    }
-  ])
+  const [recentChats, setRecentChats] = useState([]); // Recent conversations
+  const [allUsers, setAllUsers] = useState([]); // All users for search
+  const [displayedContacts, setDisplayedContacts] = useState([]); // What is actually shown
+  const [searchQuery, setSearchQuery] = useState(""); // Search input state
 
-  const [selectedChat, setSelectedChat] = useState(1)
+  // Initial dummy data for conversation
+  const [selectedChat, setSelectedChat] = useState(null);
   const [inputMessage, setInputMessage] = useState('')
   const [chatListOpen, setChatListOpen] = useState(true)
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const selectedChatData = messages.find(m => m.id === selectedChat)
+  // Conversation state for the active chat window
+  const [conversation, setConversation] = useState([]);
 
-  const handleSendMessage = () => {
-    if (inputMessage.trim()) {
+  // Fetch Data on Load
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+
+        let currentUserId = null;
+        if (userStr) {
+          const parsed = JSON.parse(userStr);
+          setCurrentUser(parsed);
+          currentUserId = parsed.id;
+        }
+
+        if (!token || !currentUserId) {
+          console.warn("Chat: Missing token or user ID");
+          return;
+        }
+
+        // Fetch Recent Chats
+        try {
+          const recentRes = await axios.get(`http://localhost:3000/api/chats/${currentUserId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          // Transform Recent
+          const recent = recentRes.data.map(user => ({
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            message: user.message,
+            time: user.time ? new Date(user.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
+            avatar: user.name ? user.name.charAt(0).toUpperCase() : "?",
+            unread: false,
+            status: "offline"
+          }));
+
+          setRecentChats(recent);
+          setDisplayedContacts(recent); // Default view
+          if (recent.length > 0) setSelectedChat(recent[0].id);
+
+        } catch (error) {
+          console.error("Error fetching recent chats:", error);
+        }
+
+        // Fetch All Users (for search)
+        const usersRes = await axios.get("http://localhost:3000/api/users", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const all = (usersRes.data.users || [])
+          .filter(u => u.id !== currentUserId)
+          .map(user => ({
+            id: user.id,
+            name: user.fullname,
+            role: user.email,
+            message: "Start a new conversation", // generic message
+            time: "",
+            avatar: user.fullname ? user.fullname.charAt(0).toUpperCase() : "?",
+            unread: false,
+            status: "offline"
+          }));
+        setAllUsers(all);
+
+      } catch (err) {
+        console.error("Failed to fetch chat data", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Handle Search vs Recent View
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setDisplayedContacts(recentChats);
+    } else {
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = allUsers.filter(contact =>
+        contact.name.toLowerCase().includes(lowerQuery) ||
+        contact.role.toLowerCase().includes(lowerQuery)
+      );
+      setDisplayedContacts(filtered);
+    }
+  }, [searchQuery, recentChats, allUsers]);
+
+  // Fetch Chat History when selectedChat changes
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (!selectedChat || !currentUser) return;
+
+      // Clear unread status in recent list
+      setRecentChats(prev => prev.map(c =>
+        c.id === selectedChat ? { ...c, unread: false } : c
+      ));
+
+      try {
+        const res = await axios.get(`http://localhost:3000/api/messages/${currentUser.id}/${selectedChat}`);
+        const history = res.data.map(msg => ({
+          id: msg.id,
+          text: msg.message,
+          sender: msg.sender_id === currentUser.id ? "me" : "other",
+          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        setConversation(history);
+      } catch (err) {
+        console.error("Failed to fetch chat history", err);
+      }
+    };
+    fetchHistory();
+  }, [selectedChat, currentUser]);
+
+  const selectedChatData = displayedContacts.find(m => m.id === selectedChat) || allUsers.find(u => u.id === selectedChat);
+
+  // Listen for incoming messages
+  useEffect(() => {
+    const handleReceiveMessage = (data) => {
+      // Reorder contacts: Move sender to top & set unread
+      setRecentChats(prev => {
+        const senderId = data.senderId === currentUser?.id ? data.receiverId : data.senderId;
+        const senderIndex = prev.findIndex(c => c.id === senderId);
+
+        let updatedContacts = [...prev];
+        let sender;
+
+        if (senderIndex !== -1) {
+          // User already in recent list
+          [sender] = updatedContacts.splice(senderIndex, 1);
+        } else {
+          // User not in recent list - find in allUsers or create placeholder
+          const userDetails = allUsers.find(u => u.id === senderId);
+          if (!userDetails) return prev; // Should be rare
+          sender = { ...userDetails };
+        }
+
+        // Update unread status only if not currently chatting with them
+        const isUnread = senderId !== selectedChat;
+
+        updatedContacts.unshift({
+          ...sender,
+          unread: isUnread || sender.unread,
+          message: data.message,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+
+        return updatedContacts;
+      });
+
+      // Update active conversation if applicable
+      if (
+        (data.senderId === selectedChat && data.receiverId === currentUser?.id) ||
+        (data.senderId === currentUser?.id && data.receiverId === selectedChat)
+      ) {
+        setConversation((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            text: data.message,
+            sender: data.senderId === currentUser?.id ? "me" : "other",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }
+    };
+
+    socket.off("receive_message").on("receive_message", handleReceiveMessage);
+
+    // Cleanup listener on unmount/dep change to avoid duplicates
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+    };
+
+  }, [socket, selectedChat, currentUser, allUsers]);
+
+  const handleSendMessage = async () => {
+    if (inputMessage.trim() && currentUser && selectedChat) {
+      const messageData = {
+        room: selectedChat,
+        senderId: currentUser.id,
+        receiverId: selectedChat,
+        author: currentUser.fullname,
+        message: inputMessage,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      await socket.emit("send_message", messageData);
+
+      // Optimistic update: Add to conversation AND reorder contacts list
+      setConversation((prev) => [
+        ...prev,
+        { id: Date.now(), text: inputMessage, sender: "me", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+      ]);
+
+      // Move receiver to top in contacts list
+      setRecentChats(prev => {
+        const receiverIndex = prev.findIndex(c => c.id === selectedChat);
+        let updatedContacts = [...prev];
+        let receiver;
+
+        if (receiverIndex !== -1) {
+          [receiver] = updatedContacts.splice(receiverIndex, 1);
+        } else {
+          const userDetails = allUsers.find(u => u.id === selectedChat);
+          if (!userDetails) return prev;
+          receiver = { ...userDetails };
+        }
+
+        updatedContacts.unshift({
+          ...receiver,
+          message: "You: " + inputMessage,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+        return updatedContacts;
+      });
+
       setInputMessage('')
     }
   }
@@ -69,9 +240,7 @@ const Chat = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Chat List Sidebar */}
-      <div className={`${
-        chatListOpen ? 'block' : 'hidden'
-      } md:block w-full md:w-80 bg-white border-r border-gray-200 overflow-y-auto`}>
+      <div className={`${chatListOpen ? 'block' : 'hidden'} md:block w-full md:w-80 bg-white border-r border-gray-200 overflow-y-auto`}>
         {/* Messages Header */}
         <div className="p-4 border-b border-gray-200 sticky top-0 bg-white">
           <div className="flex items-center justify-between mb-4">
@@ -91,7 +260,9 @@ const Chat = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search Chats....."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search Employees..."
               className="bg-transparent ml-2 w-full text-sm outline-none text-gray-600 placeholder-gray-400"
             />
           </div>
@@ -99,49 +270,50 @@ const Chat = () => {
 
         {/* Chat List */}
         <div className="divide-y divide-gray-100">
-          {messages.map((msg) => (
+          {displayedContacts.map((msg) => (
             <button
               key={msg.id}
               onClick={() => {
                 setSelectedChat(msg.id)
                 setChatListOpen(false)
               }}
-              className={`w-full p-2.5 text-left transition-colors ${
-                selectedChat === msg.id ? 'bg-blue-50' : 'hover:bg-gray-50'
-              }`}
+              className={`w-full p-2.5 text-left transition-colors ${selectedChat === msg.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
             >
               <div className="flex items-center gap-2.5">
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-400 to-blue-600 text-white flex items-center justify-center font-semibold shrink-0 text-sm">
                   {msg.avatar}
                 </div>
-                
+
                 {/* Message Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold text-gray-800 truncate text-sm">{msg.name}</h3>
+                    <h3 className={`font-semibold truncate text-sm ${msg.unread ? 'text-black font-bold' : 'text-gray-800'}`}>{msg.name}</h3>
                     {msg.status === 'online' && (
                       <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
                     )}
                   </div>
-                  <p className="text-xs text-gray-600 truncate">{msg.role}</p>
+                  <p className={`text-xs truncate ${msg.unread ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>{msg.message || msg.role}</p>
                   <div className="flex items-center justify-between mt-0.5">
                     <p className="text-xs text-gray-500">{msg.time}</p>
                     {msg.unread && (
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>
                     )}
                   </div>
                 </div>
               </div>
             </button>
           ))}
+          {displayedContacts.length === 0 && (
+            <div className="p-4 text-center text-gray-500 text-sm">
+              {searchQuery ? `No employees found matching "${searchQuery}"` : "Search for employees to start a chat"}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Chat Window */}
-      <div className={`${
-        chatListOpen ? 'hidden' : 'flex'
-      } md:flex flex-1 flex-col bg-white`}>
+      <div className={`${chatListOpen ? 'hidden' : 'flex'} md:flex flex-1 flex-col bg-white`}>
         {/* Chat Header */}
         <div className="border-b border-gray-200 p-3 md:p-4 flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
@@ -182,36 +354,14 @@ const Chat = () => {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-          {/* Sample messages */}
-          <div className="flex justify-start">
-            <div className="bg-gray-200 text-gray-800 rounded-lg px-3 md:px-4 py-2 max-w-xs md:max-w-md">
-              <p className="text-sm">Hey Eric, have you collaborated with Fred yet?</p>
+          {conversation.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}>
+              <div className={`${msg.sender === "me" ? "bg-blue-300" : "bg-gray-200"} text-gray-800 rounded-lg px-3 md:px-4 py-2 max-w-xs md:max-w-md`}>
+                <p className="text-sm">{msg.text}</p>
+                <p className="text-[10px] text-gray-500 mt-1 text-right">{msg.time}</p>
+              </div>
             </div>
-          </div>
-
-          <div className="flex justify-start">
-            <div className="bg-gray-200 text-gray-800 rounded-lg px-3 md:px-4 py-2 max-w-xs md:max-w-md">
-              <p className="text-sm">So.. question. How long has server been unconscious?</p>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <div className="bg-blue-300 text-gray-800 rounded-lg px-3 md:px-4 py-2 max-w-xs md:max-w-md">
-              <p className="text-sm">Oh my god, Chris. The server is not working and it is showing some problem indication...</p>
-            </div>
-          </div>
-
-          <div className="flex justify-start">
-            <div className="bg-gray-200 text-gray-800 rounded-lg px-3 md:px-4 py-2 max-w-xs md:max-w-md">
-              <p className="text-sm">Y fear when Chris is here... I've taught you well. You have the right instincts...</p>
-            </div>
-          </div>
-
-          <div className="flex justify-start mt-6 mb-4">
-            <button className="px-3 md:px-4 py-1 bg-gray-100 text-gray-600 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">
-              Section 3
-            </button>
-          </div>
+          ))}
         </div>
 
         {/* Message Input */}

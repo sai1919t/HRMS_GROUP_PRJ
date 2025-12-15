@@ -102,3 +102,18 @@ export const getAllUsers = async () => {
     }
 };
 
+// Delete employee of the month
+export const deleteEmployeeOfMonth = async (id) => {
+    try {
+        const token = getAuthToken();
+        const response = await axios.delete(`${API_URL}/${id}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+

@@ -135,6 +135,18 @@ const FeedPage3 = ({ onNavigateBack }) => {
         }
     };
 
+    const handleDeleteEmployeeOfMonth = async () => {
+        if (window.confirm('Are you sure you want to delete the Employee of the Month? This will remove the entire entry and team.')) {
+            try {
+                await employeeOfMonthService.deleteEmployeeOfMonth(employeeData.id);
+                setEmployeeData(null);
+            } catch (error) {
+                console.error('Error deleting employee of the month:', error);
+                alert('Failed to delete employee of the month');
+            }
+        }
+    };
+
     return (
         <div className="p-4 sm:p-8">
             <div className="max-w-7xl mx-auto">
@@ -174,10 +186,19 @@ const FeedPage3 = ({ onNavigateBack }) => {
                                 {/* Employee of the Month Card */}
                                 <div className="bg-white rounded-3xl shadow-md p-8">
                                     {/* Header */}
-                                    <div className="text-center mb-8">
+                                    <div className="text-center mb-8 relative">
                                         <h2 className="text-sm font-bold text-gray-700 tracking-widest uppercase">
                                             Employee of the Month
                                         </h2>
+                                        <button
+                                            onClick={handleDeleteEmployeeOfMonth}
+                                            className="absolute top-0 right-0 text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                            title="Delete Employee of the Month"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
                                     </div>
 
                                     {/* Featured Employee */}
