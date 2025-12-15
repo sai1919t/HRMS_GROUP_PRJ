@@ -7,18 +7,19 @@ import { addToken } from "../models/blacklistedTokens.js";
 export const signup = async (req, res) => {
     try {
         console.log("DATABASE_URL =", process.env.DATABASE_URL);
-        const { fullname, email, password } = req.body;
+        const { fullname, email, password, designation } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const newUser = await createUserService(fullname, email, password);
+        const newUser = await createUserService(fullname, email, password, designation);
 
         console.log("--------------------------------------------------");
         console.log("🆕 NEW USER SIGNUP");
         console.log(`👤 Name: ${newUser.fullname}`);
         console.log(`📧 Email: ${newUser.email}`);
+        console.log(`🏷️ Designation: ${newUser.designation}`);
         console.log(`🕒 Time: ${new Date().toLocaleString()}`);
         console.log("--------------------------------------------------");
 
@@ -32,7 +33,8 @@ export const signup = async (req, res) => {
             user: {
                 id: newUser.id,
                 fullname: newUser.fullname,
-                email: newUser.email
+                email: newUser.email,
+                designation: newUser.designation
             }
         });
     } catch (error) {

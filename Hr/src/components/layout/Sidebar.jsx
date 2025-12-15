@@ -2,6 +2,15 @@ import { Link, useLocation } from "react-router-dom";
 
 function Sidebar() {
   const location = useLocation();
+  let storedUser = null;
+  try {
+    storedUser = JSON.parse(localStorage.getItem("user") || "null");
+  } catch (e) {
+    storedUser = null;
+  }
+  const fullname = storedUser?.fullname || "Mariya";
+  const designation = storedUser?.designation || "HR Manager";
+  const email = storedUser?.email || "";
 
   const menuItems = [
     { name: "Dashboard", path: "/dashboard" },
@@ -25,12 +34,13 @@ function Sidebar() {
       {/* PROFILE */}
       <div className="flex items-center gap-3 mb-10">
         <img
-          src="https://i.pravatar.cc/150?img=47"
+          src={`https://i.pravatar.cc/150?u=${email || fullname}`}
           className="w-14 h-14 rounded-full"
+          alt={fullname}
         />
         <div>
-          <p className="font-semibold">Mariya</p>
-          <p className="text-sm opacity-70">HR Manager</p>
+          <p className="font-semibold">{fullname}</p>
+          <p className="text-sm opacity-70 capitalize">{designation}</p>
         </div>
       </div>
 

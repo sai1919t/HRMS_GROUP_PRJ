@@ -5,8 +5,9 @@ const SignUp = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [designation, setDesignation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({ name: "", email: "", password: "" });
+  const [errors, setErrors] = useState({ name: "", email: "", password: "", designation: "" });
 
   useEffect(() => {
     const previous = document.body.style.backgroundColor;
@@ -17,13 +18,14 @@ const SignUp = () => {
   }, []);
 
   const validate = () => {
-    const newErrors = { name: "", email: "", password: "" };
+    const newErrors = { name: "", email: "", password: "", designation: "" };
     if (name.trim().length < 3) newErrors.name = "Name must be at least 3 characters long.";
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email.trim())) newErrors.email = "Please enter a valid email address.";
     if (password.trim().length < 8) newErrors.password = "Password must be at least 8 characters long.";
+    if (designation.trim() === "") newErrors.designation = "Please select your designation.";
     setErrors(newErrors);
-    return !newErrors.name && !newErrors.email && !newErrors.password;
+    return !newErrors.name && !newErrors.email && !newErrors.password && !newErrors.designation;
   };
 
   const handleSubmit = async (e) => {
@@ -45,6 +47,7 @@ const SignUp = () => {
             fullname: name,
             email: email,
             password: password,
+            designation: designation
           }),
         });
 
@@ -61,7 +64,8 @@ const SignUp = () => {
           setName("");
           setEmail("");
           setPassword("");
-          setErrors({ name: "", email: "", password: "" });
+          setDesignation("");
+          setErrors({ name: "", email: "", password: "", designation: "" });
           if (typeof robot !== "undefined") robot.checked = false;
 
           // Redirect to dashboard
@@ -115,6 +119,20 @@ const SignUp = () => {
                 <label htmlFor="email" className="block text-sm font-semibold mb-1 text-black">Email address</label>
                 <input id="email" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="you@example.com" />
                 {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="designation" className="block text-sm font-semibold mb-1 text-black">Designation</label>
+                <select id="designation" name="designation" value={designation} onChange={(e) => setDesignation(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base">
+                  <option value="">Select designation</option>
+                  <option value="HR">HR</option>
+                  <option value="Developer">Developer</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Designer">Designer</option>
+                  <option value="Intern">Intern</option>
+                  <option value="Other">Other</option>
+                </select>
+                {errors.designation && <p className="text-red-500 text-xs mt-1">{errors.designation}</p>}
               </div>
 
               <div>

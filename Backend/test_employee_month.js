@@ -50,13 +50,15 @@ const runTests = async () => {
         const user = {
             fullname: `Test Manager ${timestamp}`,
             email: `manager${timestamp}@example.com`,
-            password: "password123"
+            password: "password123",
+            designation: "Manager"
         };
 
         const employee = {
             fullname: `Star Employee ${timestamp}`,
             email: `employee${timestamp}@example.com`,
-            password: "password123"
+            password: "password123",
+            designation: "Employee"
         };
 
         // 1. Signup Manager
