@@ -1,168 +1,182 @@
-import React from 'react';
+import React, { useEffect, useState } from "react";
 import {
-    Heart,
-    Download,
-    Globe,
-    MapPin,
-    FileText,
-    Monitor,
-    Trash2,
-    Settings,
-    UserPlus,
-    User,
-    Edit2,
-    LogOut,
-    Copy,
-    ChevronRight,
-    Briefcase
-} from 'lucide-react';
+  Heart,
+  Download,
+  Globe,
+  MapPin,
+  FileText,
+  Monitor,
+  Trash2,
+  Clock,
+  LogOut,
+  Settings,
+  UserPlus,
+} from "lucide-react";
 
 const ProfilePage = ({ onEditProfile }) => {
-    // read user from localStorage with updates
-    const [user, setUser] = React.useState(null);
-
-    React.useEffect(() => {
-        const loadUser = () => {
-            try {
-                const u = JSON.parse(localStorage.getItem("user") || "null");
-                setUser(u);
-            } catch (e) {
-                setUser(null);
-            }
-        };
-        loadUser();
-        window.addEventListener("user-updated", loadUser);
-        return () => window.removeEventListener("user-updated", loadUser);
-    }, []);
-
-    if (!user) {
-        return <div className="p-10 text-center">Please log in to view profile.</div>;
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
     }
+  });
 
-    return (
-        <div className="p-6 sm:p-10 max-w-[1600px] mx-auto space-y-8">
-            <div className="flex flex-col lg:flex-row gap-8">
-                {/* Left Section - Main Content */}
-                <div className="flex-1">
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Profile Settings</h1>
-                        <p className="text-gray-500 mt-1">Manage your personal information and preferences.</p>
-                    </div>
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === "user") {
+        try {
+          setUser(JSON.parse(e.newValue));
+        } catch {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
-                    {/* Profile Header Card */}
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 sm:p-8 flex flex-col sm:flex-row gap-8 items-start mb-8">
-                        <div className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md shrink-0 flex items-center justify-center ${user.profile_picture ? 'bg-gray-100' : 'bg-blue-50 text-blue-500'}`}>
-                            {user.profile_picture ? (
-                                <img src={user.profile_picture} alt={user.fullname} className="w-full h-full object-cover" />
-                            ) : (
-                                <User size={64} />
-                            )}
-                        </div>
+  const userData = user || {
+    fullname: "Maria Aryan",
+    email: "hrmariaaryan@example.com",
+    designation: "HR",
+    avatar: "https://i.pravatar.cc/150?img=5",
+    bio: "Passionate HR specialist focused on people and culture.",
+  };
 
-                        <div className="flex-1 w-full">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                                <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">{user.fullname}</h2>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Briefcase size={14} className="text-gray-400" />
-                                        <span className="text-sm font-medium text-gray-600">{user.designation || "Employee"}</span>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={onEditProfile}
-                                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition shadow-sm"
-                                    >
-                                        <Edit2 size={16} />
-                                        Edit Profile
-                                    </button>
-                                </div>
-                            </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6 sm:p-10">
 
-                            <div className="flex items-center gap-4 py-3 px-4 bg-gray-50 rounded-lg border border-gray-100 w-fit">
-                                <div className="p-1.5 bg-white rounded-md shadow-sm">
-                                    <MailIcon />
-                                </div>
-                                <span className="text-sm text-gray-700 font-medium">{user.email}</span>
-                                <button
-                                    className="text-gray-400 hover:text-blue-600 transition ml-2"
-                                    onClick={() => navigator.clipboard?.writeText(user.email)}
-                                    title="Copy Email"
-                                >
-                                    <Copy size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+      {/* HEADER */}
+      <div className="bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-8 mb-10 border border-white/40">
+        <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
+          My Profile
+        </h1>
+        <p className="text-gray-600 mt-1">Manage your personal information & settings</p>
+      </div>
 
-                    {/* Quick Access Grid */}
-                    <div className="grid md:grid-cols-2 gap-6 mb-8">
-                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                            <h3 className="text-lg font-bold text-gray-900 mb-4">Activity</h3>
-                            <div className="space-y-1">
-                                <MenuItem icon={Heart} label="Latest feed" />
-                                <MenuItem icon={Download} label="Latest uploads" />
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                            <h3 className="text-lg font-bold text-gray-900 mb-4">Preferences</h3>
-                            <div className="space-y-1">
-                                <MenuItem icon={Globe} label="Languages" />
-                                <MenuItem icon={FileText} label="Files and documents" />
-                            </div>
-                        </div>
-                    </div>
+      <div className="flex flex-col lg:flex-row gap-10">
+
+        {/* LEFT SECTION */}
+        <div className="flex-1 space-y-10">
+
+          {/* PROFILE CARD */}
+          <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200 hover:shadow-2xl transition-all duration-300">
+            <div className="flex items-center gap-8">
+              <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-200">
+                <img
+                  src={userData.avatar}
+                  alt={userData.fullname}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-3xl font-semibold text-gray-900">
+                    {userData.fullname}
+                  </h2>
+                  <span className="text-xs uppercase bg-blue-100 text-blue-700 px-3 py-1 rounded-full shadow-sm">
+                    {userData.designation}
+                  </span>
                 </div>
 
-                {/* Right Sidebar */}
-                <div className="w-full lg:w-80 space-y-6">
-                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Account</h3>
-                        <div className="space-y-1">
-                            <MenuItem icon={UserPlus} label="My Referrals" />
-                            <MenuItem icon={Settings} label="Settings" />
-                            <MenuItem icon={Monitor} label="Display" />
-                            <MenuItem icon={Trash2} label="Deleted Items" />
-                        </div>
+                <p className="text-sm text-gray-600 mt-1">{userData.email}</p>
+                <p className="text-sm text-gray-500 mt-2 max-w-md">{userData.bio}</p>
 
-                        <div className="pt-6 mt-6 border-t border-gray-100">
-                            <button
-                                className="w-full bg-red-50 text-red-600 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-red-100 transition"
-                                onClick={async () => {
-                                    const { logout } = await import("../../services/auth.service.js");
-                                    await logout();
-                                    localStorage.removeItem("token");
-                                    localStorage.removeItem("user");
-                                    window.location.href = "/login";
-                                }}
-                            >
-                                <LogOut size={18} />
-                                Sign Out
-                            </button>
-                        </div>
-                    </div>
+                <div className="mt-5 flex gap-4">
+                  <button
+                    onClick={onEditProfile}
+                    className="bg-[#266ECD] text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition"
+                  >
+                    Edit Profile
+                  </button>
+
+                  <button
+                    className="border border-gray-300 px-5 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-100 active:scale-95 transition"
+                    onClick={() => navigator.clipboard?.writeText(user.email)}
+                  >
+                    Copy email
+                  </button>
                 </div>
+              </div>
             </div>
+          </div>
+
+          {/* INTERACTIVE MENU SECTIONS */}
+          <SectionCard>
+            <MenuItem icon={<Heart />} label="Latest feed" />
+            <MenuItem icon={<Download />} label="Latest uploads" />
+          </SectionCard>
+
+          <SectionCard>
+            <MenuItem icon={<Globe />} label="Languages" />
+            <MenuItem icon={<MapPin />} label="Location" />
+            <MenuItem icon={<FileText />} label="Files and documents" />
+            <MenuItem icon={<Monitor />} label="Display" />
+          </SectionCard>
+
+          <SectionCard>
+            <MenuItem icon={<Trash2 />} label="Recently deleted" />
+            <MenuItem icon={<Clock />} label="Clear History" />
+            <MenuItem icon={<LogOut className="rotate-180" />} label="Exit" />
+          </SectionCard>
         </div>
-    );
+
+        {/* RIGHT SIDEBAR */}
+        <div className="w-full lg:w-80">
+          <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300">
+            <div className="space-y-6">
+              <SidebarItem icon={<Heart />} label="Appreciations" />
+              <SidebarItem icon={<UserPlus />} label="My Referrals" />
+              <SidebarItem icon={<Settings />} label="Settings" />
+
+              <div className="pt-4">
+                <button
+                  className="w-full bg-red-50 text-red-600 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-100 active:scale-95 transition"
+                  onClick={async () => {
+                    const { logout } = await import("../../services/auth.service.js");
+                    await logout();
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    window.location.href = "/login";
+                  }}
+                >
+                  <LogOut className="w-5 h-5" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
 };
 
-// Helper Components
-const MenuItem = ({ icon: Icon, label }) => (
-    <button className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-gray-50 text-left group transition-colors">
-        <div className="flex items-center gap-3">
-            <Icon className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
-            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{label}</span>
-        </div>
-        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500" />
-    </button>
+/* COMPONENTS */
+
+const SectionCard = ({ children }) => (
+  <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 hover:shadow-xl transition-all duration-300">
+    <div className="space-y-5">{children}</div>
+  </div>
 );
 
-const MailIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
-        <rect width="20" height="16" x="2" y="4" rx="2"></rect>
-        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
-    </svg>
-)
+const MenuItem = ({ icon, label }) => (
+  <button className="flex items-center gap-4 w-full text-left group p-3 rounded-xl hover:bg-gray-100 active:scale-[0.98] transition">
+    <span className="text-gray-700 group-hover:text-[#266ECD] transition">{icon}</span>
+    <span className="text-lg font-medium text-gray-900 group-hover:text-[#266ECD] transition">
+      {label}
+    </span>
+  </button>
+);
+
+const SidebarItem = ({ icon, label }) => (
+  <button className="flex items-center gap-3 w-full text-left text-gray-600 hover:text-[#266ECD] hover:bg-gray-100 p-3 rounded-xl active:scale-[0.98] transition">
+    {icon}
+    <span className="text-sm font-medium">{label}</span>
+  </button>
+);
 
 export default ProfilePage;

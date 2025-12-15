@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { findUserByEmail, getAllUsers as getAllUsersModel } from "../models/user.model.js";
-import { createUserService } from "../services/user.service.js";
+import { createUserService, updateUserService } from "../services/user.service.js";
 import { addToken } from "../models/blacklistedTokens.js";
 
 export const signup = async (req, res) => {
@@ -110,6 +110,34 @@ export const getAllUsers = async (req, res) => {
         });
     } catch (error) {
         console.error("❌ Get All Users Error:", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+export const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // only allow users to update their own profile
+        if (!req.user || String(req.user.id) !== String(id)) {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const updates = req.body || {};
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ message: "No updates provided" });
+        }
+
+        const updatedUser = await updateUserService(id, updates);
+        res.status(200).json({ message: "User updated", user: updatedUser });
+    } catch (error) {
+        console.error("❌ Update User Error:", error.message);
+        if (error.message === "Email already in use") {
+            return res.status(400).json({ message: error.message });
+        }
+        if (error.message === "User not found") {
+            return res.status(404).json({ message: error.message });
+        }
         res.status(500).json({ message: "Internal Server Error" });
     }
 };

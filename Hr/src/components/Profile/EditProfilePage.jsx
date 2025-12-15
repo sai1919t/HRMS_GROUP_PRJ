@@ -1,111 +1,102 @@
-import React, { useState } from 'react';
-import { User, X } from 'lucide-react';
-import axios from 'axios';
 
-const EditProfilePage = ({ onCancel, onSave: onSaveCallback }) => {
-    // Get user from local storage
-    const user = JSON.parse(localStorage.getItem('user'));
+import React, { useEffect, useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-    // Initial state
-    const [formData, setFormData] = useState({
-        fullname: user.fullname || '',
-        email: user.email || '',
-        designation: user.designation || '',
-        profile_picture: user.profile_picture || ''
+const EditProfilePage = ({ onCancel, onSave }) => {
+    const navigate = useNavigate();
+    const [storedUser, setStoredUser] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
     });
 
-    const fileInputRef = React.useRef(null);
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [designation, setDesignation] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    useEffect(() => {
+        const fullname = storedUser?.fullname || '';
+        const parts = fullname.split(' ');
+        setFirstName(parts[0] || '');
+        setLastName(parts.slice(1).join(' ') || '');
+        setEmail(storedUser?.email || '');
+        setDesignation(storedUser?.designation || '');
+    }, [storedUser]);
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData({ ...formData, profile_picture: reader.result });
-            };
-            reader.readAsDataURL(file);
+    // ensure inputs are focusable and visible (helps when overlays or layout affect focus)
+    const firstNameRef = useRef(null);
+    useEffect(() => {
+        if (firstNameRef.current) {
+            firstNameRef.current.focus();
         }
-    };
-
-    const handleRemovePhoto = () => {
-        setFormData({ ...formData, profile_picture: null });
-    };
+        const onStorage = (e) => {
+            if (e.key === 'user') {
+                try { setStoredUser(JSON.parse(e.newValue)); } catch { setStoredUser(null); }
+            }
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, []);
 
     const handleSave = async () => {
+        setSaving(true);
+        setError("");
+        setSuccess("");
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setError('You must be logged in to update your profile.');
+            setSaving(false);
+            return;
+        }
+        const id = storedUser?.id;
+        const fullname = `${firstName} ${lastName}`.trim();
+
         try {
-            const res = await axios.put(`http://localhost:3000/api/users/profile/${user.id}`, formData);
-            if (res.data) {
-                // Update local storage
-                localStorage.setItem('user', JSON.stringify(res.data));
-                // Dispatch event for sidebar synchronization
-                window.dispatchEvent(new Event("user-updated"));
-                onSaveCallback();
+            const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ fullname, email, designation })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.message || 'Update failed');
+                return;
             }
+
+            // update localStorage and navigate back to profile
+            const newUser = { ...storedUser, ...data.user };
+            localStorage.setItem('user', JSON.stringify(newUser));
+            if (onSave) onSave(newUser);
+            setSuccess('Profile updated successfully');
+            // reflect change immediately
+            setTimeout(() => window.location.href = '/profile', 600);
         } catch (err) {
-            console.error("Failed to update profile", err);
-            alert("Failed to update profile");
+            console.error('Update error:', err);
+            setError(err.message || 'Failed to update profile');
+        } finally {
+            setSaving(false);
         }
     };
 
-    const avatarSrc = formData.profile_picture;
-
     return (
-        <div className="p-4 sm:p-8 max-w-2xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-900 border-b-2 border-gray-900 inline-block mb-12 pb-1">
-                Edit Profile
-            </h1>
+        <div className="p-4 sm:p-8 max-w-4xl mx-auto relative z-10">
+            <h1 className="text-3xl font-bold text-gray-900 border-b-2 border-gray-900 inline-block mb-12 pb-1">Edit Profile</h1>
 
             <div className="flex flex-col items-center mb-12">
-                <div className="relative group">
-                    <div
-                        className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md flex items-center justify-center shrink-0 ${!avatarSrc ? 'bg-blue-50 text-blue-500' : 'bg-gray-100'}`}
-                    >
-                        {avatarSrc ? (
-                            <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                            <User size={64} />
-                        )}
-                    </div>
-
-                    {/* ACTIONS: Upload & Remove */}
-                    <div className="absolute -bottom-2 -right-2 flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current.click()}
-                            className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition"
-                            title="Upload Photo"
-                        >
-                            <User size={16} /> {/* Using User icon as pencil alternative or generic action, strictly relying on lucide-react imports from ProfilePage context if possible but here we might need Pencil back */}
-                        </button>
-                        {avatarSrc && (
-                            <button
-                                type="button"
-                                onClick={handleRemovePhoto}
-                                className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition"
-                                title="Remove Photo"
-                            >
-                                <X size={16} />
-                            </button>
-                        )}
+                <div className="relative">
+                    <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200">
+                        <img src={storedUser?.avatar || 'https://i.pravatar.cc/150?img=5'} alt="avatar" className="w-full h-full object-cover" />
                     </div>
                 </div>
 
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="hidden"
-                />
-
-                <h2 className="text-xl font-bold text-gray-900 mt-4">{user.fullname}</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                    {avatarSrc ? "Click buttons to change" : "Upload a profile picture"}
-                </p>
+                <h2 className="text-xl font-bold text-gray-900 mt-4">{firstName} {lastName}</h2>
             </div>
 
             <div className="space-y-6">
@@ -113,52 +104,41 @@ const EditProfilePage = ({ onCancel, onSave: onSaveCallback }) => {
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Full Name</label>
-                        <input
-                            type="text"
-                            name="fullname"
-                            value={formData.fullname}
-                            onChange={handleChange}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD]"
-                        />
+                        <label className="block text-xs text-gray-500 mb-1">First Name</label>
+                        <input ref={firstNameRef} value={firstName} onChange={(e) => setFirstName(e.target.value)} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD] focus:border-transparent" />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD]"
-                        />
+                        <label className="block text-xs text-gray-500 mb-1">Last Name</label>
+                        <input value={lastName} onChange={(e) => setLastName(e.target.value)} type="text" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD] focus:border-transparent" />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Designation</label>
-                        <input
-                            type="text"
-                            name="designation"
-                            value={formData.designation}
-                            onChange={handleChange}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD]"
-                        />
+                        <label className="block text-xs text-gray-500 mb-1">Email</label>
+                        <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD] focus:border-transparent" />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">Designation</label>
+                        <select value={designation} onChange={(e) => setDesignation(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD] focus:border-transparent">
+                            <option value="">Select designation</option>
+                            <option value="HR">HR</option>
+                            <option value="Developer">Developer</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Designer">Designer</option>
+                            <option value="Intern">Intern</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
                 </div>
 
-                <div className="flex justify-center gap-4 mt-12 pt-6">
-                    <button
-                        onClick={onCancel}
-                        className="px-8 py-2.5 rounded-full bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="px-8 py-2.5 rounded-full bg-[#0066FF] text-white font-bold hover:bg-blue-600 transition shadow-lg"
-                    >
-                        Save Changes
-                    </button>
+                <div>
+                    {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+                    {success && <p className="text-green-600 text-sm mb-2">{success}</p>}
+                </div>
+                <div className="flex justify-center gap-4 mt-6 pt-4">
+                    <button onClick={onCancel} className="px-8 py-2.5 rounded-full bg-gray-400 text-white font-bold hover:bg-gray-500 transition">Cancel</button>
+                    <button onClick={handleSave} disabled={saving} className="px-8 py-2.5 rounded-full bg-[#0066FF] text-white font-bold hover:bg-blue-600 transition">{saving ? 'Saving...' : 'Save'}</button>
                 </div>
             </div>
         </div>

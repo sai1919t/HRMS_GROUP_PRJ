@@ -64,6 +64,36 @@ export const findUserByEmail = async (email) => {
   return rows[0];
 };
 
+export const findUserById = async (id) => {
+  const query = "SELECT * FROM users WHERE id = $1";
+  const { rows } = await pool.query(query, [id]);
+  return rows[0];
+};
+
+export const updateUser = async (id, updates) => {
+  // Only allow these fields to be updated
+  const allowed = ["fullname", "email", "password", "designation"];
+  const setClauses = [];
+  const values = [];
+  let idx = 1;
+  for (const key of Object.keys(updates)) {
+    if (!allowed.includes(key)) continue;
+    setClauses.push(`${key} = $${idx}`);
+    values.push(updates[key]);
+    idx++;
+  }
+
+  if (setClauses.length === 0) {
+    const user = await findUserById(id);
+    return user;
+  }
+
+  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, fullname, email, designation, created_at`;
+  values.push(id);
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+};
+
 export const getAllUsers = async () => {
   const query = "SELECT id, fullname, email, designation, profile_picture FROM users ORDER BY fullname";
   const { rows } = await pool.query(query);

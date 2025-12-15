@@ -60,6 +60,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { useEffect, useState } from "react";
 
 const data = [
   { month: "Jan", hires: 25, attrition: 10, growth: 15 },
@@ -77,6 +78,12 @@ const data = [
 ];
 
 export default function HiringStatsChart() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Ensure we only render the responsive chart after mount to avoid zero width/height warnings
+    setMounted(true);
+  }, []);
   return (
     <div className="w-full h-[400px] bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
       <div className="mb-6">
@@ -86,61 +93,63 @@ export default function HiringStatsChart() {
         <p className="text-sm text-gray-500">Overview of employee movement across the year</p>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-          <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3" vertical={false} />
+      {mounted && (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <CartesianGrid stroke="#E6E6E6" strokeDasharray="3 3" />
 
-          <XAxis
-            dataKey="month"
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: '#6b7280', fontSize: 12 }}
-            dy={10}
-          />
-          <YAxis
-            axisLine={false}
-            tickLine={false}
-            tick={{ fill: '#6b7280', fontSize: 12 }}
-          />
+            <XAxis
+              dataKey="month"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              dy={10}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+            />
 
-          <Tooltip
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-            itemStyle={{ fontSize: '12px' }}
-          />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+              itemStyle={{ fontSize: '12px' }}
+            />
 
-          <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+            <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
 
-          <Line
-            type="monotone"
-            dataKey="hires"
-            stroke="#2563eb" // Blue-600
-            strokeWidth={3}
-            dot={false}
-            activeDot={{ r: 6 }}
-            name="New Hires"
-          />
+            <Line
+              type="monotone"
+              dataKey="hires"
+              stroke="#2563eb" // Blue-600
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 6 }}
+              name="New Hires"
+            />
 
-          <Line
-            type="monotone"
-            dataKey="attrition"
-            stroke="#ef4444" // Red-500
-            strokeWidth={3}
-            dot={false}
-            activeDot={{ r: 6 }}
-            name="Attrition"
-          />
+            <Line
+              type="monotone"
+              dataKey="attrition"
+              stroke="#ef4444" // Red-500
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 6 }}
+              name="Attrition"
+            />
 
-          <Line
-            type="monotone"
-            dataKey="growth"
-            stroke="#10b981" // Green-500
-            strokeWidth={3}
-            dot={false}
-            activeDot={{ r: 6 }}
-            name="Net Growth"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <Line
+              type="monotone"
+              dataKey="growth"
+              stroke="#10b981" // Green-500
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 6 }}
+              name="Net Growth"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

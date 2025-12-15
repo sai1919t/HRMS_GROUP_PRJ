@@ -13,8 +13,11 @@ const Profile = () => {
         setIsEditing(false);
     };
 
-    const handleSaveProfile = () => {
-        // Logic to save profile would go here
+    const handleSaveProfile = (updatedUser) => {
+        // called by EditProfilePage after successful save
+        if (updatedUser) {
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
         setIsEditing(false);
     };
 
