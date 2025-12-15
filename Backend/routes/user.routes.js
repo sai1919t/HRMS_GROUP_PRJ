@@ -1,13 +1,25 @@
 import express from "express";
-import { signup, login, logout, getAllUsers, updateUser } from "../controller/user.controller.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
+import { signup, login, logout, getAllUsers, updateUser } from "../controllers/user.controller.js";
+import { authenticate, authorizeRoles } from "../middleware/auth.middle.js";
 
 const router = express.Router();
 
+// ------------------- PUBLIC ROUTES -------------------
+// Signup new user
 router.post("/signup", signup);
+
+// Login user
 router.post("/login", login);
-router.post("/logout", authMiddleware, logout);
-router.get("/", authMiddleware, getAllUsers);
-router.put("/:id", authMiddleware, updateUser);
+
+// ------------------- PROTECTED ROUTES -------------------
+// Logout user (must be logged in)
+router.post("/logout", authenticate, logout);
+
+// Get all users (Admin only)
+router.get("/", authenticate, authorizeRoles("Admin"), getAllUsers);
+
+// Update user (user can update only their own profile)
+router.put("/:id", authenticate, updateUser);
 
 export default router;
+
