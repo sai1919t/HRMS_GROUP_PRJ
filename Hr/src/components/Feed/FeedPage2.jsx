@@ -19,8 +19,14 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     const [showComments, setShowComments] = useState({});
     const [comments, setComments] = useState({});
     const [meetings, setMeetings] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            setIsAdmin(user.role === 'Admin');
+        }
         fetchAppreciations();
         fetchMeetings();
     }, []);
@@ -59,7 +65,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                 const upcomingOnly = meetingsData.filter((meeting) => {
                     const meetingDate = new Date(meeting.meeting_date);
                     // Reset meeting time to midnight for accurate date comparison
-                    meetingDate.setHours(0,0,0,0);
+                    meetingDate.setHours(0, 0, 0, 0);
                     return meetingDate >= today;
                 });
 
@@ -186,15 +192,17 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed: Your Hub for Updates and Interaction</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={onNavigateToCreateForm}
-                            className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>New</span>
-                        </button>
+                        {isAdmin && (
+                            <button
+                                onClick={onNavigateToCreateForm}
+                                className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>New</span>
+                            </button>
+                        )}
                         <button
                             onClick={fetchAppreciations}
                             className="text-red-500 hover:text-red-600"
@@ -241,12 +249,14 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         {!loading && !error && appreciations.length === 0 && (
                             <div className="bg-white rounded-2xl shadow-md p-12 text-center">
                                 <p className="text-gray-500 text-lg">No appreciations yet. Be the first to create one!</p>
-                                <button
-                                    onClick={onNavigateToCreateForm}
-                                    className="mt-4 bg-[#266ECD] text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90"
-                                >
-                                    Create Appreciation
-                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={onNavigateToCreateForm}
+                                        className="mt-4 bg-[#266ECD] text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90"
+                                    >
+                                        Create Appreciation
+                                    </button>
+                                )}
                             </div>
                         )}
 
