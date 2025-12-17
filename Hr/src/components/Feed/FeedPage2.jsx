@@ -8,6 +8,8 @@ import {
 } from '../../services/appreciationService';
 // Ensure you have created this file in src/services/meetingService.js
 import { getUpcomingMeetings } from '../../services/meetingService';
+import { Link } from 'react-router-dom';
+import Promotion from '../../pages/Promotion';
 
 const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateForm }) => {
     const [appreciations, setAppreciations] = useState([]);
@@ -216,7 +218,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                 Employee of the Month
                             </button>
                             <button className="pb-3 text-gray-500 hover:text-gray-900 font-medium">
-                                Promotions
+                                <Link to="/promotion">Promotions</Link>
                             </button>
                         </div>
 

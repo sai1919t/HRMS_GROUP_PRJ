@@ -9,6 +9,7 @@ import {
     deleteAppreciation
 } from '../../services/appreciationService';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 
 const FeedPage1 = ({ onNavigateBack }) => {
     // State for the "Give Points" interaction
@@ -205,7 +206,7 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </div>
                             <p className="text-sm text-gray-600 mb-4">Reward points with Manager</p>
                             <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
-                                Attempt
+                                <Link to="/redemption">View Redemption Center</Link>
                             </button>
                         </div>
 
