@@ -7,13 +7,25 @@ import { addToken } from "../models/blacklistedTokens.js";
 export const signup = async (req, res) => {
     try {
         console.log("DATABASE_URL =", process.env.DATABASE_URL);
-        const { fullname, email, password, designation } = req.body;
+        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
-        const newUser = await createUserService(fullname, email, password, designation);
+        const newUser = await createUserService(
+            fullname,
+            email,
+            password,
+            designation,
+            job_title,
+            department,
+            phone,
+            date_of_joining,
+            employee_id,
+            profile_picture,
+            status
+        );
 
         console.log("--------------------------------------------------");
         console.log("🆕 NEW USER SIGNUP");
@@ -32,9 +44,17 @@ export const signup = async (req, res) => {
             token,
             user: {
                 id: newUser.id,
+                employee_id: newUser.employee_id,
                 fullname: newUser.fullname,
                 email: newUser.email,
-                designation: newUser.designation
+                designation: newUser.designation,
+                job_title: newUser.job_title,
+                department: newUser.department,
+                phone: newUser.phone,
+                date_of_joining: newUser.date_of_joining,
+                status: newUser.status,
+                profile_picture: newUser.profile_picture,
+                created_at: newUser.created_at
             }
         });
     } catch (error) {

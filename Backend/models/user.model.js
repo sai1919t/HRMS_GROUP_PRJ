@@ -1,14 +1,19 @@
 import pool from "../db/db.js"; // db
 
-// ... existing code ...
 export const createUserTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
+      employee_id VARCHAR(50) DEFAULT '',
       fullname VARCHAR(255) NOT NULL,
       email VARCHAR(255) UNIQUE NOT NULL,
       password VARCHAR(255) NOT NULL,
       designation VARCHAR(100) DEFAULT '',
+      job_title VARCHAR(100) DEFAULT '',
+      department VARCHAR(100) DEFAULT '',
+      phone VARCHAR(50) DEFAULT '',
+      date_of_joining DATE,
+      status VARCHAR(20) DEFAULT 'ACTIVE',
       profile_picture TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -16,7 +21,13 @@ export const createUserTable = async () => {
   try {
     await pool.query(query);
     // Ensure columns exist for older databases
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(50) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS designation VARCHAR(100) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_joining DATE`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT`);
     console.log("✅ Users table created/updated successfully");
   } catch (error) {
@@ -24,13 +35,25 @@ export const createUserTable = async () => {
   }
 };
 
-export const createUser = async (fullname, email, password, designation = '') => {
+export const createUser = async (
+  fullname,
+  email,
+  password,
+  designation = '',
+  job_title = '',
+  department = '',
+  phone = '',
+  date_of_joining = null,
+  employee_id = '',
+  profile_picture = '',
+  status = 'ACTIVE'
+) => {
   const query = `
-    INSERT INTO users (fullname, email, password, designation)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO users (employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture)
+    VALUES ($1,$2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *;
   `;
-  const values = [fullname, email, password, designation];
+  const values = [employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture];
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
@@ -72,7 +95,19 @@ export const findUserById = async (id) => {
 
 export const updateUser = async (id, updates) => {
   // Only allow these fields to be updated
-  const allowed = ["fullname", "email", "password", "designation"];
+  const allowed = [
+    "employee_id",
+    "fullname",
+    "email",
+    "password",
+    "designation",
+    "job_title",
+    "department",
+    "phone",
+    "date_of_joining",
+    "status",
+    "profile_picture",
+  ];
   const setClauses = [];
   const values = [];
   let idx = 1;
@@ -88,14 +123,14 @@ export const updateUser = async (id, updates) => {
     return user;
   }
 
-  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, fullname, email, designation, created_at`;
+  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, created_at`;
   values.push(id);
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
 
 export const getAllUsers = async () => {
-  const query = "SELECT id, fullname, email, designation, profile_picture FROM users ORDER BY fullname";
+  const query = `SELECT id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, created_at FROM users ORDER BY fullname`;
   const { rows } = await pool.query(query);
   return rows;
 };

@@ -1,14 +1,38 @@
 import bcrypt from "bcrypt";
 import { createUser, findUserByEmail, findUserById, updateUser } from "../models/user.model.js";
 
-export const createUserService = async (fullname, email, password, designation = '') => {
+export const createUserService = async (
+    fullname,
+    email,
+    password,
+    designation = '',
+    job_title = '',
+    department = '',
+    phone = '',
+    date_of_joining = null,
+    employee_id = '',
+    profile_picture = '',
+    status = 'ACTIVE'
+) => {
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
         throw new Error("User already exists");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await createUser(fullname, email, hashedPassword, designation);
+    const newUser = await createUser(
+        fullname,
+        email,
+        hashedPassword,
+        designation,
+        job_title,
+        department,
+        phone,
+        date_of_joining,
+        employee_id,
+        profile_picture,
+        status
+    );
 
     return newUser;
 };

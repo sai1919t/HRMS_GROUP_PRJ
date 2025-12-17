@@ -6,8 +6,14 @@ const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [designation, setDesignation] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateOfJoining, setDateOfJoining] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({ name: "", email: "", password: "", designation: "" });
+  const [errors, setErrors] = useState({ name: "", email: "", password: "", designation: "", phone: "" });
 
   useEffect(() => {
     const previous = document.body.style.backgroundColor;
@@ -18,14 +24,16 @@ const SignUp = () => {
   }, []);
 
   const validate = () => {
-    const newErrors = { name: "", email: "", password: "", designation: "" };
+    const newErrors = { name: "", email: "", password: "", designation: "", phone: "" };
     if (name.trim().length < 3) newErrors.name = "Name must be at least 3 characters long.";
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email.trim())) newErrors.email = "Please enter a valid email address.";
     if (password.trim().length < 8) newErrors.password = "Password must be at least 8 characters long.";
     if (designation.trim() === "") newErrors.designation = "Please select your designation.";
+    const phonePattern = /^[0-9+\-()\s]{7,20}$/;
+    if (phone && !phonePattern.test(phone.trim())) newErrors.phone = "Please enter a valid phone number.";
     setErrors(newErrors);
-    return !newErrors.name && !newErrors.email && !newErrors.password && !newErrors.designation;
+    return !newErrors.name && !newErrors.email && !newErrors.password && !newErrors.designation && !newErrors.phone;
   };
 
   const handleSubmit = async (e) => {
@@ -47,7 +55,14 @@ const SignUp = () => {
             fullname: name,
             email: email,
             password: password,
-            designation: designation
+            designation: designation,
+            job_title: jobTitle,
+            department: department,
+            phone: phone,
+            date_of_joining: dateOfJoining || null,
+            employee_id: employeeId,
+            profile_picture: profilePicture,
+            status: "ACTIVE"
           }),
         });
 
@@ -113,6 +128,37 @@ const SignUp = () => {
                 <label htmlFor="name" className="block text-sm font-semibold mb-1 text-black">Name</label>
                 <input id="name" name="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="Your name" />
                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="jobTitle" className="block text-sm font-semibold mb-1 text-black">Job title</label>
+                <input id="jobTitle" name="jobTitle" type="text" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="e.g. Senior Engineer" />
+              </div>
+
+              <div>
+                <label htmlFor="department" className="block text-sm font-semibold mb-1 text-black">Department</label>
+                <input id="department" name="department" type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="e.g. Engineering" />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-semibold mb-1 text-black">Phone</label>
+                <input id="phone" name="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="Optional" />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="dateOfJoining" className="block text-sm font-semibold mb-1 text-black">Date of joining</label>
+                <input id="dateOfJoining" name="dateOfJoining" type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" />
+              </div>
+
+              <div>
+                <label htmlFor="employeeId" className="block text-sm font-semibold mb-1 text-black">Employee ID</label>
+                <input id="employeeId" name="employeeId" type="text" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="Optional" />
+              </div>
+
+              <div>
+                <label htmlFor="profilePicture" className="block text-sm font-semibold mb-1 text-black">Profile picture URL</label>
+                <input id="profilePicture" name="profilePicture" type="url" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="https://..." />
               </div>
 
               <div>
