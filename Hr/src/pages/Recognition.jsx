@@ -2,76 +2,351 @@ import React, { useState, useEffect } from "react";
 import coin from "../assets/coin.png";
 import medal from "../assets/medal.png";
 import trophy from "../assets/trophy.png";
-import { createEmployeeOfMonth, getAllUsers } from "../services/employeeOfMonthService";
 
 export default function RecognitionPage() {
   const [selectedSection, setSelectedSection] = useState("recipient");
+  const [selectedRecipientId, setSelectedRecipientId] = useState(null);
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const res = await fetch("http://localhost:3000/api/users", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+
+      const data = await res.json();
+      setUsers(data.users);
+    };
+
+    fetchUsers();
+  }, []);
+
+
   const [formData, setFormData] = useState({
     recipientName: "",
     department: "IT & Systems",
     employeeId: "",
     jobTitle: "",
-  });
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await getAllUsers();
-        if (data && data.users) {
-          setUsers(data.users);
-        } else if (Array.isArray(data)) {
-          setUsers(data);
-        } else {
-          console.warn("Unexpected users data structure:", data);
-          setUsers([]);
-        }
-      } catch (err) {
-        console.error("Failed to fetch users", err);
-      }
-    };
-    fetchUsers();
-  }, []);
+    appreciationType: "",
+    achievement: "",
+    appreciationDate: "",
+
+    contextMessage: "",
+    visibility: "",
+    approval: "manager"
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleNext = async () => {
+  const handleSubmit = async () => {
+    if (!selectedRecipientId) {
+      alert("Please select a valid recipient from the list");
+      return;
+    }
+
+
+    const loggedInUser = JSON.parse(localStorage.getItem("user"));
+    if (loggedInUser && selectedRecipientId === loggedInUser.id) {
+      alert("You cannot appreciate yourself");
+      return;
+    }
     try {
-      if (!formData.recipientName) {
-        alert("Please select a recipient");
-        return;
-      }
+      const payload = {
+        recipient_id: Number(selectedRecipientId), // MUST be number
+        title: `${formData.appreciationType} Appreciation`,
+        category: formData.appreciationType,
+        message: `${formData.achievement}${formData.contextMessage ? "\n\n" + formData.contextMessage : ""}`,
+        emoji: "🎉",
+        points: 0
+      };
 
-      // Find user ID based on selection
-      const selectedUser = users.find(u => u.fullname === formData.recipientName);
-      if (!selectedUser) {
-        alert("Please select a valid user from the list");
-        return;
-      }
+      console.log("Submitting payload:", payload);
 
-      await createEmployeeOfMonth(
-        selectedUser.id,
-        `${formData.jobTitle} - ${formData.department}`, // Using description for title/dept
-        new Date().toLocaleString('default', { month: 'long' }),
-        [] // No team members for now
-      );
-
-      alert("Employee of the Month nominated successfully!");
-      // Reset form
-      setFormData({
-        recipientName: "",
-        department: "IT & Systems",
-        employeeId: "",
-        jobTitle: "",
+      const res = await fetch("http://localhost:3000/api/appreciations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}` // REQUIRED
+        },
+        body: JSON.stringify(payload)
       });
-    } catch (error) {
-      console.error("Error submitting nomination:", error);
-      alert("Failed to submit nomination");
+
+      if (res.status === 401) {
+        alert("Session expired. Please login again.");
+        localStorage.removeItem("token");
+        return;
+      }
+      const data = await res.json();
+      console.log("RESPONSE:", data);
+      if (!res.ok) {
+        throw new Error(data.message || "Backend error");
+      }
+
+      alert("Appreciation sent successfully");
+    } catch (err) {
+      console.error("FULL ERROR:", err);
+      alert(err.message || "Something went wrong");
     }
   };
+
+
+  const renderRecipientForm = () => (
+    <>
+
+      <h2 className="text-lg font-semibold text-purple-700">
+        Select the Recipient
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Choose a colleague you'd like to appreciate
+      </p>
+
+      {/* Recipient Name */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Recipient
+        </label>
+
+        <input
+          type="text"
+          value={formData.recipientName}
+          onChange={(e) => {
+            const value = e.target.value;
+            setFormData(prev => ({ ...prev, recipientName: value }));
+
+            const matches = users.filter(user =>
+              user.fullname.toLowerCase().includes(value.toLowerCase())
+            );
+
+            setFilteredUsers(matches);
+          }}
+          placeholder="Enter recipient name"
+          className="w-full p-3 border rounded-lg"
+        />
+        {filteredUsers.length > 0 && (
+          <ul className="border rounded-lg mt-1 bg-white max-h-40 overflow-y-auto">
+            {filteredUsers.map(user => (
+              <li
+                key={user.id}
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, recipientName: user.fullname }));
+                  setSelectedRecipientId(user.id);
+                  setFilteredUsers([]);
+                }}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+              >
+                {user.fullname}
+              </li>
+            ))}
+          </ul>
+        )}
+
+      </div>
+
+
+      {/* Department */}
+      <div className="mb-4">
+        <label className="block text-sm font-semibold mb-1">
+          Department/Team
+        </label>
+        <select
+          name="department"
+          value={formData.department}
+          onChange={handleChange}
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="IT & Systems">IT & Systems</option>
+          <option value="HR">HR</option>
+          <option value="Finance">Finance</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Operations">Operations</option>
+        </select>
+      </div>
+
+      {/* Employee ID + Job Title */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Employee ID
+          </label>
+          <input
+            type="text"
+            name="employeeId"
+            value={formData.employeeId}
+            onChange={handleChange}
+            placeholder="Enter ID"
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Job Title
+          </label>
+          <select
+            name="jobTitle"
+            value={formData.jobTitle}
+            onChange={handleChange}
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          >
+            <option value="">Select</option>
+            <option value="Software Engineer">Software Engineer</option>
+            <option value="Senior Developer">Senior Developer</option>
+            <option value="Team Lead">Team Lead</option>
+            <option value="Manager">Manager</option>
+            <option value="Director">Director</option>
+          </select>
+        </div>
+      </div>
+
+
+
+    </>
+  );
+
+  const renderAppreciationForm = () => (
+    <>
+      <h2 className="text-lg font-semibold text-purple-700">
+        Reason for Appreciation
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Tell us why your colleague deserves appreciation
+      </p>
+
+      {/* Type of Appreciation */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Type of Appreciation
+        </label>
+        <select
+          name="appreciationType"
+          value={formData.appreciationType}
+          onChange={handleChange}
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="">Select</option>
+          <option value="Teamwork">Teamwork</option>
+          <option value="Leadership">Leadership</option>
+          <option value="Innovation">Innovation</option>
+          <option value="Outstanding Performance">Outstanding Performance</option>
+        </select>
+      </div>
+
+      {/* Specific Achievement */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Specific Achievement
+        </label>
+        <textarea
+          name="achievement"
+          value={formData.achievement}
+          onChange={handleChange}
+          rows="3"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          placeholder="Describe the action"
+        />
+      </div>
+
+      {/* Date + Attachment */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Date
+          </label>
+          <input
+            type="date"
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Attachments (Optional)
+          </label>
+          <label className="flex items-center justify-center gap-2 w-full p-3 border border-dashed border-purple-400 rounded-lg cursor-pointer text-purple-600 font-medium hover:bg-purple-50">
+            Choose a File
+            <input type="file" className="hidden" />
+          </label>
+        </div>
+      </div>
+    </>
+  );
+
+
+  const renderDetailsForm = () => (
+    <>
+      <h2 className="text-lg font-semibold text-purple-700">
+        Add Context (Optional)
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Share any additional details or a personal message
+      </p>
+
+      {/* Message */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Message
+        </label>
+        <textarea
+          name="contextMessage"
+          value={formData.contextMessage}
+          onChange={handleChange}
+          maxLength={150}
+          rows="4"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          placeholder="Describe the action"
+        />
+        <div className="text-xs text-gray-400 text-right mt-1">
+          0/150
+        </div>
+      </div>
+
+      {/* Visibility */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Choose who can see the appreciation
+        </label>
+        <select
+          name="visibility"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="">Select</option>
+          <option value="public">Public</option>
+          <option value="team">Team Only</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+
+      {/* Approval options */}
+      <div className="space-y-2 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="approval"
+            value="manager"
+            defaultChecked
+          />
+          This post will be sent to admin/manager for approval
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="radio" name="approval" value="notify" />
+          Send notification to the recipient
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="radio" name="approval" value="comments" />
+          Allow others to comment or add to the appreciation
+        </label>
+      </div>
+    </>
+  );
 
   const leaderboard = [
     {
@@ -315,96 +590,35 @@ export default function RecognitionPage() {
             </div>
 
             {/* FORM CARD */}
-            <div className="bg-gray-100 rounded-2xl p-6 shadow">
-              <h2 className="text-lg font-semibold text-purple-700">
-                Select the Recipient
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Choose a colleague you'd like to appreciate
-              </p>
+            <div className="bg-gray-100 rounded-2xl p-6 shadow transition-all">
+              {selectedSection === "recipient" && renderRecipientForm()}
+              {selectedSection === "appreciation" && renderAppreciationForm()}
+              {selectedSection === "details" && renderDetailsForm()}
 
-              {/* Recipient Name */}
-              <div className="mb-5">
-                <label className="block text-sm font-semibold mb-1">
-                  Recipient Name
-                </label>
-                <select
-                  name="recipientName"
-                  value={formData.recipientName}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                >
-                  <option value="">Select Employee</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.fullname}>{user.fullname}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Department */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold mb-1">
-                  Department/Team
-                </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                >
-                  <option value="IT & Systems">IT & Systems</option>
-                  <option value="HR">HR</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Operations">Operations</option>
-                </select>
-              </div>
-
-              {/* Employee ID + Job Title */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    name="employeeId"
-                    value={formData.employeeId}
-                    onChange={handleChange}
-                    placeholder="Enter ID"
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    Job Title
-                  </label>
-                  <select
-                    name="jobTitle"
-                    value={formData.jobTitle}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                  >
-                    <option value="">Select</option>
-                    <option value="Software Engineer">Software Engineer</option>
-                    <option value="Senior Developer">Senior Developer</option>
-                    <option value="Team Lead">Team Lead</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Director">Director</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
+              {/* FOOTER BUTTONS */}
+              <div className="flex justify-end mt-6">
                 <button
-                  onClick={handleNext}
+                  onClick={() => {
+                    if (selectedSection === "recipient") {
+                      setSelectedSection("appreciation");
+                      return;
+                    }
+
+                    if (selectedSection === "appreciation") {
+                      setSelectedSection("details");
+                      return;
+                    }
+
+                    // details step
+                    handleSubmit();
+                  }}
                   className="bg-blue-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-800 transition"
                 >
-                  Next step
+                  {selectedSection === "details" ? "Send Appreciation" : "Next step"}
                 </button>
               </div>
             </div>
+
 
             {/* RECENT RECOGNITION */}
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -451,6 +665,7 @@ export default function RecognitionPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
+
   );
 }

@@ -1,209 +1,182 @@
-import React, { useState, useEffect } from "react";
-import { Clock, Plus, MoreVertical, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { Plus, Edit2, Trash2 } from "lucide-react"; // Added Trash2 icon
+import { motion } from "framer-motion";
+import MeetingModal from "./AddMeetingModal";
 
 export default function MeetingsUI() {
   const [meetings, setMeetings] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    date: "",
-    startTime: "",
-    endTime: "",
-    type: "Remote"
-  });
-
-  const fetchMeetings = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/api/meetings");
-      setMeetings(res.data);
-    } catch (err) {
-      console.error("Failed to fetch meetings", err);
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
 
   useEffect(() => {
     fetchMeetings();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete meeting?")) return;
-    try {
-      await axios.delete(`http://localhost:3000/api/meetings/${id}`);
-      fetchMeetings();
-    } catch (err) {
-      console.error(err);
+  const fetchMeetings = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setMeetings([]);
+      setLoading(false);
+      return;
     }
+
+    fetch("http://localhost:3000/api/meetings", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setMeetings(data);
+        } else {
+          setMeetings([]);
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      // Construct timestamps
-      const startDateTime = new Date(`${formData.date}T${formData.startTime}`);
-      const endDateTime = new Date(`${formData.date}T${formData.endTime}`);
+  const handleOpenAdd = () => {
+    setSelectedMeeting(null);
+    setShowModal(true);
+  };
 
-      await axios.post("http://localhost:3000/api/meetings", {
-        title: formData.title,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        type: formData.type
+  const handleOpenEdit = (meeting) => {
+    setSelectedMeeting(meeting);
+    setShowModal(true);
+  };
+
+  // ✅ New: Handle Delete directly from the list
+  const handleDeleteDirectly = async (id, e) => {
+    e.stopPropagation(); // Prevent the row click (Edit) from firing
+    
+    if (!window.confirm("Are you sure you want to cancel this meeting?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:3000/api/meetings/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      setShowModal(false);
-      setFormData({ title: "", date: "", startTime: "", endTime: "", type: "Remote" });
-      fetchMeetings();
+      if (res.ok) {
+        setMeetings((prev) => prev.filter((m) => m.id !== id));
+      } else {
+        alert("Failed to delete meeting");
+      }
     } catch (err) {
       console.error(err);
-      alert("Failed to add meeting");
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  }
+  const handleMeetingSaved = (savedMeeting) => {
+    setMeetings((prev) => {
+      const exists = prev.find((m) => m.id === savedMeeting.id);
+      if (exists) {
+        return prev.map((m) => (m.id === savedMeeting.id ? savedMeeting : m));
+      } else {
+        return [...prev, savedMeeting];
+      }
+    });
+  };
 
-  // Helper to format date/time
-  const getFormatters = (isoString) => {
-    const dateObj = new Date(isoString);
-    const dayShort = dateObj.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    const dateNum = dateObj.getDate();
-    const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    return { dayShort, dateNum, timeStr };
+  const handleMeetingDeleted = (deletedId) => {
+    setMeetings((prev) => prev.filter((m) => m.id !== deletedId));
+  };
+
+  const formatMeeting = (m) => {
+    const dateObj = new Date(m.meeting_date);
+    return {
+      ...m,
+      dayShort: dateObj.toLocaleDateString("en-US", { weekday: "short" }),
+      date: dateObj.getDate(),
+      timeDisplay: `From ${m.start_time} to ${m.end_time}`,
+      color: "bg-blue-500",
+    };
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm w-full h-full flex flex-col min-h-[350px] relative">
+    <div className="bg-white p-6 rounded-xl shadow-md w-full h-full flex flex-col min-h-[300px]">
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">Upcoming Meetings</h2>
-          <p className="text-sm text-gray-500">You have {meetings.length} meetings upcoming</p>
-        </div>
-
+        <h2 className="text-lg font-bold text-blue-600">Meetings</h2>
         <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
+          onClick={handleOpenAdd}
+          className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700"
         >
           <Plus size={16} />
-          <span>Add</span>
+          Add Meeting
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto pr-2">
-        {meetings.length === 0 && <p className="text-center text-gray-400 text-sm mt-10">No upcoming meetings</p>}
-        {meetings.map((m, idx) => {
-          const start = getFormatters(m.start_time);
-          const end = getFormatters(m.end_time);
-
-          return (
-            <motion.div
-              key={m.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 * idx }}
-              className="flex items-center gap-4 p-3 rounded-lg border border-gray-50 hover:bg-gray-50 transition-colors group"
-            >
-              {/* Date Box */}
-              <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center text-blue-600 bg-blue-50 shrink-0 group-hover:bg-blue-100 transition-colors`}>
-                <span className="text-[10px] font-bold uppercase tracking-wider">{start.dayShort}</span>
-                <span className="text-lg font-bold leading-none">{start.dateNum}</span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-gray-900 font-semibold text-sm truncate capitalize">{m.title}</h3>
-
-                  {/* ALIGNMENT FIX: Flex container for badge and dots */}
-                  <div className="flex items-center gap-2">
-                    <span className="bg-orange-50 text-orange-600 text-[10px] px-2 py-0.5 rounded-full font-medium">
-                      {m.type}
-                    </span>
-                    <button
-                      onClick={() => handleDelete(m.id)}
-                      className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-100 transition-colors" title="Delete"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
-                  <Clock size={12} />
-                  <span className="truncate">From {start.timeStr} to {end.timeStr}</span>
-                </p>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
-
-      <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-        <span className="text-xs font-medium text-blue-600 cursor-pointer hover:underline">View Calendar</span>
-        <span className="text-xs text-gray-400">Synced now</span>
-      </div>
-
-      {/* MODAL */}
-      <AnimatePresence>
-        {showModal && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)}
-              className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl"
-            />
-
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-gray-200 shadow-xl rounded-xl p-6 w-full max-w-sm relative z-10"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-gray-800">Add Meeting</h3>
-                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">Title</label>
-                  <input required name="title" value={formData.title} onChange={handleChange} className="w-full text-sm border border-gray-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Interview" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 block mb-1">Date</label>
-                    <input required type="date" name="date" value={formData.date} onChange={handleChange} className="w-full text-sm border border-gray-200 rounded-lg p-2 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 block mb-1">Type</label>
-                    <select name="type" value={formData.type} onChange={handleChange} className="w-full text-sm border border-gray-200 rounded-lg p-2 outline-none">
-                      <option>Remote</option>
-                      <option>In-Person</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 block mb-1">Start</label>
-                    <input required type="time" name="startTime" value={formData.startTime} onChange={handleChange} className="w-full text-sm border border-gray-200 rounded-lg p-2 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-600 block mb-1">End</label>
-                    <input required type="time" name="endTime" value={formData.endTime} onChange={handleChange} className="w-full text-sm border border-gray-200 rounded-lg p-2 outline-none" />
-                  </div>
-                </div>
-
-                <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium text-sm hover:bg-blue-700 mt-2">
-                  Create Meeting
-                </button>
-              </form>
-            </motion.div>
-          </div>
+      {/* Meetings List */}
+      <div className="flex-1 space-y-4 overflow-y-auto pr-2">
+        {loading && <p className="text-sm text-gray-400">Loading meetings...</p>}
+        {!loading && meetings.length === 0 && (
+          <p className="text-sm text-gray-400">No meetings scheduled</p>
         )}
-      </AnimatePresence>
+
+        {!loading &&
+          meetings.map((raw, idx) => {
+            const m = formatMeeting(raw);
+            return (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 * idx }}
+                className="group flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border border-transparent hover:border-gray-100"
+                onClick={() => handleOpenEdit(raw)}
+              >
+                {/* Date Box */}
+                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white ${m.color} shadow-sm shrink-0`}>
+                  <span className="text-[10px] font-bold uppercase">{m.dayShort}</span>
+                  <span className="text-lg font-bold leading-none">{m.date}</span>
+                </div>
+
+                {/* Text Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-gray-900 font-bold text-sm capitalize truncate">{m.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1 truncate">{m.timeDisplay}</p>
+                </div>
+
+                {/* Actions: Edit & Delete (Visible on Hover) */}
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleOpenEdit(raw); }}
+                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteDirectly(m.id, e)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-100">
+        <div className="text-xs text-gray-400">Last synced just now</div>
+        <button onClick={fetchMeetings} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs font-medium hover:bg-blue-700">
+          Sync
+        </button>
+      </div>
+
+      <MeetingModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        meetingToEdit={selectedMeeting}
+        onMeetingSaved={handleMeetingSaved}
+        onMeetingDeleted={handleMeetingDeleted}
+      />
     </div>
   );
 }
