@@ -23,10 +23,10 @@ export const createJobsTable = async () => {
 
 // Create a new job
 export const createJob = (data) => {
-  const { title, location, experience, salary, description } = data;
+  const { title, location, experience, salary } = data;
   return pool.query(
-    "INSERT INTO jobs (title, location, experience, salary, description) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-    [title, location, experience, salary, description]
+    "INSERT INTO jobs (title, location, experience, salary) VALUES ($1,$2,$3,$4) RETURNING *",
+    [title, location, experience, salary]
   );
 };
 

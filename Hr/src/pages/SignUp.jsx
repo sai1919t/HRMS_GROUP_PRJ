@@ -12,6 +12,8 @@ const SignUp = () => {
   const [dateOfJoining, setDateOfJoining] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
+  const [profileFile, setProfileFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({ name: "", email: "", password: "", designation: "", phone: "" });
 
@@ -46,6 +48,30 @@ const SignUp = () => {
     }
     if (isValid) {
       try {
+        // upload profile file first if present
+        let uploadedPath = profilePicture;
+        if (profileFile) {
+          setUploading(true);
+          try {
+            const form = new FormData();
+            form.append('profile', profileFile);
+            const upRes = await fetch('http://localhost:3000/api/users/upload-profile', {
+              method: 'POST',
+              body: form,
+            });
+            const upData = await upRes.json();
+            if (upRes.ok && upData.path) {
+              uploadedPath = upData.path;
+            } else {
+              console.warn('Upload failed, continuing without profile image');
+            }
+          } catch (err) {
+            console.error('Upload failed', err);
+          } finally {
+            setUploading(false);
+          }
+        }
+
         const response = await fetch("http://localhost:3000/api/users/signup", {
           method: "POST",
           headers: {
@@ -61,7 +87,7 @@ const SignUp = () => {
             phone: phone,
             date_of_joining: dateOfJoining || null,
             employee_id: employeeId,
-            profile_picture: profilePicture,
+            profile_picture: uploadedPath,
             status: "ACTIVE"
           }),
         });
@@ -157,8 +183,9 @@ const SignUp = () => {
               </div>
 
               <div>
-                <label htmlFor="profilePicture" className="block text-sm font-semibold mb-1 text-black">Profile picture URL</label>
-                <input id="profilePicture" name="profilePicture" type="url" value={profilePicture} onChange={(e) => setProfilePicture(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="https://..." />
+                <label htmlFor="profilePicture" className="block text-sm font-semibold mb-1 text-black">Profile picture (optional)</label>
+                <input id="profilePicture" name="profilePicture" type="file" accept="image/*" onChange={(e) => setProfileFile(e.target.files && e.target.files[0])} className="w-full max-w-[400px]" />
+                {profileFile && <p className="text-xs text-gray-700 mt-1">Selected: {profileFile.name}</p>}
               </div>
 
               <div>

@@ -11,6 +11,7 @@ import {
   LogOut,
   Settings,
   UserPlus,
+  User,
 } from "lucide-react";
 
 const ProfilePage = ({ onEditProfile }) => {
@@ -36,11 +37,16 @@ const ProfilePage = ({ onEditProfile }) => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const userData = user || {
+  const userData = user ? {
+    ...user,
+    // Use profile_picture if available, fallback to legacy avatar or null
+    avatar: user.profile_picture || user.avatar || null,
+    bio: user.bio || "Passionate HR specialist focused on people and culture.",
+  } : {
     fullname: "Maria Aryan",
     email: "hrmariaaryan@example.com",
     designation: "HR",
-    avatar: "https://i.pravatar.cc/150?img=5",
+    avatar: null,
     bio: "Passionate HR specialist focused on people and culture.",
   };
 
@@ -63,12 +69,16 @@ const ProfilePage = ({ onEditProfile }) => {
           {/* PROFILE CARD */}
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200 hover:shadow-2xl transition-all duration-300">
             <div className="flex items-center gap-8">
-              <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-200">
-                <img
-                  src={userData.avatar}
-                  alt={userData.fullname}
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-200 flex items-center justify-center bg-gray-100">
+                {userData.avatar && userData.avatar !== "https://i.pravatar.cc/150?img=5" ? (
+                  <img
+                    src={userData.avatar}
+                    alt={userData.fullname}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User size={64} className="text-gray-400" />
+                )}
               </div>
 
               <div className="flex-1">

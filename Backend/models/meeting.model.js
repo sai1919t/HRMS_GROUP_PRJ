@@ -1,17 +1,27 @@
 import pool from "../db/db.js";
 
 export const createMeetingTable = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS meetings (
-      id SERIAL PRIMARY KEY,
-      title VARCHAR(255) NOT NULL,
-      meeting_date DATE NOT NULL,
-      start_time TIME NOT NULL,
-      end_time TIME NOT NULL,
-      created_by INTEGER,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        meeting_date DATE,
+        start_time TIME,
+        end_time TIME,
+        created_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure columns exist for older DBs
+    await pool.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_date DATE`);
+    await pool.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS start_time TIME`);
+    await pool.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS end_time TIME`);
+    await pool.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+  } catch (err) {
+    console.error("Error creating/updating meetings table:", err);
+  }
 };
 
 export const createMeeting = async (meeting) => {

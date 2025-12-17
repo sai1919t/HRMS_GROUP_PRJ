@@ -10,12 +10,30 @@ const Ecard = () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          setUsers([]);
+          setLoading(false);
+          return;
+        }
         const res = await fetch("http://localhost:3000/api/users", {
-          headers: token
-            ? { Authorization: `Bearer ${token}` }
-            : undefined,
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
         });
         if (!res.ok) {
+          let errBody = null;
+          try { errBody = await res.json(); } catch {}
+          if (res.status === 401) {
+            if (errBody && errBody.message === "Token expired") {
+              alert("Session expired. Please log in again.");
+            }
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "/login";
+            return;
+          }
           setUsers([]);
           setLoading(false);
           return;
@@ -61,7 +79,7 @@ const Ecard = () => {
 
           <div className="flex flex-col items-center text-center mb-6">
             <div className="w-16 h-16 rounded-full overflow-hidden mb-3 border border-gray-100">
-              <img src={u.profile_picture || defaultAvatar} alt={u.fullname} className="w-full h-full object-cover" />
+              <img src={u.profile_picture ? (u.profile_picture.startsWith('http') ? u.profile_picture : `http://localhost:3000${u.profile_picture}`) : defaultAvatar} alt={u.fullname} className="w-full h-full object-cover" />
             </div>
             <h3 className="font-bold text-gray-900 text-lg">{u.fullname}</h3>
             <p className="text-sm text-gray-500 font-medium">{u.job_title || u.designation || "-"}</p>

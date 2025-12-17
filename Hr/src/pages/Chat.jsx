@@ -68,20 +68,34 @@ const Chat = () => {
         }
 
         // B. Fetch All Users (Directory for Search)
-        const usersRes = await axios.get("http://localhost:3000/api/users", config);
-        const all = (usersRes.data.users || [])
-          .filter(u => u.id !== currentUserId)
-          .map(user => ({
-            id: user.id,
-            name: user.fullname,
-            role: user.email,
-            message: "Start a new conversation",
-            time: "",
-            avatar: user.fullname ? user.fullname.charAt(0).toUpperCase() : "?",
-            unread: false,
-            isRecent: false
-          }));
-        setAllUsers(all);
+        try {
+          const usersRes = await axios.get("http://localhost:3000/api/users", config);
+          const all = (usersRes.data.users || [])
+            .filter(u => u.id !== currentUserId)
+            .map(user => ({
+              id: user.id,
+              name: user.fullname,
+              role: user.email,
+              message: "Start a new conversation",
+              time: "",
+              avatar: user.fullname ? user.fullname.charAt(0).toUpperCase() : "?",
+              unread: false,
+              isRecent: false
+            }));
+          setAllUsers(all);
+        } catch (err) {
+          if (err.response && err.response.status === 401) {
+            if (err.response.data && err.response.data.message === "Token expired") {
+              alert("Session expired. Please log in again.");
+            }
+            // Token invalid/expired - force logout
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return;
+          }
+          console.error("Error fetching users for chat:", err);
+        }
 
       } catch (err) {
         console.error("Failed to load chat data", err);

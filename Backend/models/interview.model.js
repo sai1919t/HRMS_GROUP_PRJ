@@ -23,10 +23,17 @@ export const createInterviewsTable = async () => {
 };
 
 export const scheduleInterview = (data) => {
-    const { application_id, candidate_name, date, interviewer, type } = data;
+    const { application_id, date, interviewer, type } = data;
+    // content of date is expected to be a string or date object. 
+    // We assume 'date' input contains both or we default. 
+    // Simple split:
+    const d = new Date(date);
+    const interview_date = d.toISOString().split('T')[0];
+    const interview_time = d.toTimeString().split(' ')[0];
+
     return pool.query(
-        "INSERT INTO interviews (application_id, candidate_name, date, interviewer, type) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-        [application_id, candidate_name, date, interviewer, type]
+        "INSERT INTO interviews (application_id, interview_date, interview_time, interviewer, mode) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+        [application_id, interview_date, interview_time, interviewer, type]
     );
 };
 

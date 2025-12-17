@@ -27,11 +27,11 @@ function Dashboard1() {
               <EmployeesStatistics />
             </div>
 
-            <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <div className="w-full h-full mt-8">
+            <div className="mt-12 grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <div className="w-full h-full">
                 <MeetingsUI />
               </div>
-              <div className="w-full h-full mt-8">
+              <div className="w-full h-full">
                 <EmpComposition />
               </div>
             </div>

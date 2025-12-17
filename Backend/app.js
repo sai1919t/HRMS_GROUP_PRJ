@@ -28,6 +28,9 @@ app.use("/api/offers", offerRoutes);
 app.use("/api/meetings", meetingRoutes);
 
 
+// Serve static files
+app.use('/assets', express.static('assets'));
+
 
 app.get("/", (req, res) => {
     res.send("Hello World");
