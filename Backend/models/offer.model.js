@@ -22,20 +22,20 @@ export const createOffersTable = async () => {
 };
 
 export const createOffer = (data) => {
-    const { application_id, candidate_name, position, salary } = data;
+    const { application_id, position, salary } = data;
     return pool.query(
-        "INSERT INTO offers (application_id, candidate_name, position, salary) VALUES ($1,$2,$3,$4) RETURNING *",
-        [application_id, candidate_name, position, salary]
+        "INSERT INTO offer_letters (application_id, position, ctc) VALUES ($1,$2,$3) RETURNING *",
+        [application_id, position, salary] // salary input maps to ctc column
     );
 };
 
 export const getOffers = () => {
-    return pool.query("SELECT * FROM offers ORDER BY created_at DESC");
+    return pool.query("SELECT * FROM offer_letters ORDER BY created_at DESC");
 };
 
 export const updateOfferStatus = (id, status) => {
     return pool.query(
-        "UPDATE offers SET status = $1 WHERE id = $2 RETURNING *",
+        "UPDATE offer_letters SET status = $1 WHERE id = $2 RETURNING *",
         [status, id]
     );
 };

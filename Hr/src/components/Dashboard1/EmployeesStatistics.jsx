@@ -116,7 +116,12 @@ export default function HiringStatsChart() {
               itemStyle={{ fontSize: '12px' }}
             />
 
-            <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+            <Legend
+              wrapperStyle={{ paddingTop: '30px', paddingBottom: '10px' }}
+              iconType="circle"
+              align="center"
+              verticalAlign="bottom"
+            />
 
             <Line
               type="monotone"

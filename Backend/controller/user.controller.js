@@ -124,6 +124,13 @@ export const updateUser = async (req, res) => {
         }
 
         const updates = req.body || {};
+
+        if (req.file) {
+            const protocol = req.protocol;
+            const host = req.get('host');
+            updates.profile_picture = `${protocol}://${host}/assets/uploads/${req.file.filename}`;
+        }
+
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ message: "No updates provided" });
         }

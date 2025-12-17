@@ -72,7 +72,7 @@ export const findUserById = async (id) => {
 
 export const updateUser = async (id, updates) => {
   // Only allow these fields to be updated
-  const allowed = ["fullname", "email", "password", "designation"];
+  const allowed = ["fullname", "email", "password", "designation", "profile_picture"];
   const setClauses = [];
   const values = [];
   let idx = 1;
@@ -88,7 +88,7 @@ export const updateUser = async (id, updates) => {
     return user;
   }
 
-  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, fullname, email, designation, created_at`;
+  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, fullname, email, designation, profile_picture, created_at`;
   values.push(id);
   const { rows } = await pool.query(query, values);
   return rows[0];

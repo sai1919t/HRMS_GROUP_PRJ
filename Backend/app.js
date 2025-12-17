@@ -25,6 +25,9 @@ app.use("/api", applicationRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/offers", offerRoutes);
 
+// Serve static files
+app.use('/assets', express.static('assets'));
+
 
 app.get("/", (req, res) => {
     res.send("Hello World");
