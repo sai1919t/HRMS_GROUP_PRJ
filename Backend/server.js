@@ -87,7 +87,7 @@ io.on("connection", (socket) => {
     });
 });
 
-import { createMeeting, createMeetingsTable, deleteMeeting, getMeetings } from "./models/meeting.model.js";
+import { createMeeting, createMeetingTable, deleteMeeting, getMeetings } from "./models/meeting.model.js";
 import { updateUserProfile } from "./models/user.model.js";
 
 // ... existing imports ...
@@ -190,7 +190,7 @@ const initDb = async () => {
     await createInterviewsTable();
     await createOffersTable();
     await createMessagesTable();
-    await createMeetingsTable(); // Create meetings table
+    await createMeetingTable(); // Create meetings table
 };
 
 initDb();
