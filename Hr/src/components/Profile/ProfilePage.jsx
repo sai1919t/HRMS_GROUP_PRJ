@@ -51,7 +51,7 @@ const ProfilePage = ({ onEditProfile }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-6 sm:p-10">
+    <div className="min-h-screen bg-linear-to-br from-gray-100 to-gray-200 p-6 sm:p-10">
 
       {/* HEADER */}
       <div className="bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-8 mb-10 border border-white/40">

@@ -394,7 +394,7 @@ const Chat = () => {
                       {contact.time && <span className="text-[10px] text-gray-400 font-medium shrink-0 ml-2">{contact.time}</span>}
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className={`text-xs truncate max-w-[160px] ${contact.unread ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      <p className={`text-xs truncate max-w-40 ${contact.unread ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
                         {contact.message || contact.role}
                       </p>
                       {contact.unread && (
