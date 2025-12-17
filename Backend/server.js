@@ -21,8 +21,13 @@ import { createOffersTable } from "./models/offer.model.js";
 import { createInterviewsTable } from "./models/interview.model.js";
 
 import { Server } from "socket.io";
+import dotenv from "dotenv";
+import net from "net";
+
+dotenv.config();
 
 const port = process.env.PORT || 3000;
+const MAX_PORT_ATTEMPTS = 10;
 
 const server = http.createServer(app);
 
@@ -195,6 +200,47 @@ const initDb = async () => {
 
 initDb();
 
-server.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+const startServer = async () => {
+    const preferred = parseInt(port, 10);
+
+    for (let p = preferred; p < preferred + MAX_PORT_ATTEMPTS; p++) {
+        try {
+            await new Promise((resolve, reject) => {
+                const onListening = () => {
+                    server.off('error', onError);
+                    resolve();
+                };
+                const onError = (err) => {
+                    server.off('listening', onListening);
+                    reject(err);
+                };
+                server.once('listening', onListening);
+                server.once('error', onError);
+                server.listen(p);
+            });
+
+            console.log(`Server is running on port ${p}`);
+            return;
+        } catch (err) {
+            if (err && err.code === 'EADDRINUSE') {
+                console.warn(`Port ${p} is in use, trying next port...`);
+                continue;
+            } else {
+                console.error('Error while trying to listen on port', p, err);
+                process.exit(1);
+            }
+        }
+    }
+
+    console.error(`No available ports found in range ${preferred}-${preferred + MAX_PORT_ATTEMPTS - 1}.`);
+    process.exit(1);
+};
+
+server.on('error', (err) => {
+    console.error('Server error:', err);
+});
+
+startServer().catch(err => {
+    console.error('Failed to start server', err);
+    process.exit(1);
 });
