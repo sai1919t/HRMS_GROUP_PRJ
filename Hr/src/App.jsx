@@ -16,12 +16,15 @@ import ProfessionalEventsPage from './pages/ProfessionalEventsPage'
 import Feed from './pages/Feed'
 import Profile from './pages/Profile'
 import ProfileView from './components/Profile/ProfileView'
+import Promotion from './pages/Promotion'
+import Redemption from './pages/Redemption'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
 import RecruitmentLayout from "./pages/recruitment/RecruitmentLayout";
 import Applications from "./pages/recruitment/Applications";
 import Interviews from "./pages/recruitment/Interviews";
 import Offers from "./pages/recruitment/Offers";
+import RedemptionPage from './pages/Redeem'
 
 
 
@@ -41,6 +44,8 @@ function App() {
           <Route path="/event" element={<ProtectedRoute><Layout><ProfessionalEventsPage /></Layout></ProtectedRoute>} />
           <Route path="/recognition" element={<ProtectedRoute><Layout><Recognition /></Layout></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><Layout><Feed /></Layout></ProtectedRoute>} />
+          <Route path="/promotion" element={<ProtectedRoute><Layout><Promotion /></Layout></ProtectedRoute>} />
+          <Route path="/redemption" element={<ProtectedRoute><Layout><RedemptionPage /></Layout></ProtectedRoute>} />
           <Route path='/employees' element={<ProtectedRoute><Layout><EmployeesPage /></Layout></ProtectedRoute>} />
           <Route path='/chat' element={<ProtectedRoute><Layout><Chat /></Layout></ProtectedRoute>} />
           <Route path='/settings' element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
