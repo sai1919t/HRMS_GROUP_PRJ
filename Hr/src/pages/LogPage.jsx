@@ -4,6 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 export default function LogPage() {
   const navigate = useNavigate();
   useEffect(() => {
+    // Clear any existing session to prevent stale data
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
     const form = document.getElementById("loginForm");
     const emailInput = document.getElementById("Iemail");
     const passwordInput = document.getElementById("Ipassword");
