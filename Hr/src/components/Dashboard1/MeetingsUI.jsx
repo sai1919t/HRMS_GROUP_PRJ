@@ -8,8 +8,14 @@ export default function MeetingsUI() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setIsAdmin(user.role === 'Admin');
+    }
     fetchMeetings();
   }, []);
 
@@ -42,6 +48,7 @@ export default function MeetingsUI() {
   };
 
   const handleOpenEdit = (meeting) => {
+    if (!isAdmin) return; // Prevent edit if not admin
     setSelectedMeeting(meeting);
     setShowModal(true);
   };
@@ -49,7 +56,7 @@ export default function MeetingsUI() {
   // ✅ New: Handle Delete directly from the list
   const handleDeleteDirectly = async (id, e) => {
     e.stopPropagation(); // Prevent the row click (Edit) from firing
-    
+
     if (!window.confirm("Are you sure you want to cancel this meeting?")) return;
 
     try {
@@ -100,13 +107,15 @@ export default function MeetingsUI() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-lg font-bold text-blue-600">Meetings</h2>
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          Add Meeting
-        </button>
+        {isAdmin && (
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700"
+          >
+            <Plus size={16} />
+            Add Meeting
+          </button>
+        )}
       </div>
 
       {/* Meetings List */}
@@ -125,8 +134,8 @@ export default function MeetingsUI() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 * idx }}
-                className="group flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer border border-transparent hover:border-gray-100"
-                onClick={() => handleOpenEdit(raw)}
+                className={`group flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100 ${isAdmin ? 'cursor-pointer' : 'cursor-default'}`}
+                onClick={() => isAdmin && handleOpenEdit(raw)}
               >
                 {/* Date Box */}
                 <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white ${m.color} shadow-sm shrink-0`}>
@@ -141,22 +150,24 @@ export default function MeetingsUI() {
                 </div>
 
                 {/* Actions: Edit & Delete (Visible on Hover) */}
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleOpenEdit(raw); }}
-                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                    title="Edit"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteDirectly(m.id, e)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleOpenEdit(raw); }}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Edit"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteDirectly(m.id, e)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
               </motion.div>
             );
           })}

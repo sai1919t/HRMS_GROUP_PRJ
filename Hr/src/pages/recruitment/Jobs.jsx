@@ -3,6 +3,7 @@ import axios from "axios";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [form, setForm] = useState({
     title: "",
     location: "",
@@ -16,6 +17,11 @@ export default function Jobs() {
   };
 
   useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setIsAdmin(user.role === 'Admin');
+    }
     fetchJobs();
   }, []);
 
@@ -28,6 +34,7 @@ export default function Jobs() {
 
   // ✅ DELETE JOB
   const deleteJob = async (id) => {
+    if (!isAdmin) return;
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this job?"
     );
@@ -47,50 +54,52 @@ export default function Jobs() {
       <h1 className="text-2xl font-bold mb-4">Recruitment - Jobs</h1>
 
       {/* Create Job */}
-      <form onSubmit={submitJob} className="bg-white p-4 rounded shadow mb-6">
-        <h2 className="font-semibold mb-3">Create Job</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <input
-            placeholder="Job Title"
-            value={form.title}
-            onChange={(e) =>
-              setForm({ ...form, title: e.target.value })
-            }
-            className="border p-2 rounded"
-            required
-          />
-          <input
-            placeholder="Location"
-            value={form.location}
-            onChange={(e) =>
-              setForm({ ...form, location: e.target.value })
-            }
-            className="border p-2 rounded"
-            required
-          />
-          <input
-            placeholder="Experience"
-            value={form.experience}
-            onChange={(e) =>
-              setForm({ ...form, experience: e.target.value })
-            }
-            className="border p-2 rounded"
-            required
-          />
-          <input
-            placeholder="Salary"
-            value={form.salary}
-            onChange={(e) =>
-              setForm({ ...form, salary: e.target.value })
-            }
-            className="border p-2 rounded"
-            required
-          />
-        </div>
-        <button className="mt-4 bg-[#020839] text-white px-4 py-2 rounded hover:bg-[#1a2363] transition">
-          Create Job
-        </button>
-      </form>
+      {isAdmin && (
+        <form onSubmit={submitJob} className="bg-white p-4 rounded shadow mb-6">
+          <h2 className="font-semibold mb-3">Create Job</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              placeholder="Job Title"
+              value={form.title}
+              onChange={(e) =>
+                setForm({ ...form, title: e.target.value })
+              }
+              className="border p-2 rounded"
+              required
+            />
+            <input
+              placeholder="Location"
+              value={form.location}
+              onChange={(e) =>
+                setForm({ ...form, location: e.target.value })
+              }
+              className="border p-2 rounded"
+              required
+            />
+            <input
+              placeholder="Experience"
+              value={form.experience}
+              onChange={(e) =>
+                setForm({ ...form, experience: e.target.value })
+              }
+              className="border p-2 rounded"
+              required
+            />
+            <input
+              placeholder="Salary"
+              value={form.salary}
+              onChange={(e) =>
+                setForm({ ...form, salary: e.target.value })
+              }
+              className="border p-2 rounded"
+              required
+            />
+          </div>
+          <button className="mt-4 bg-[#020839] text-white px-4 py-2 rounded hover:bg-[#1a2363] transition">
+            Create Job
+          </button>
+        </form>
+      )}
 
       {/* Job List */}
       <table className="w-full bg-white rounded shadow">
@@ -118,12 +127,14 @@ export default function Jobs() {
                 <td className="p-3">{job.experience}</td>
                 <td className="p-3">{job.salary}</td>
                 <td className="p-3">
-                  <button
-                    onClick={() => deleteJob(job.id)}
-                    className="text-red-600 hover:text-red-800 font-medium"
-                  >
-                    Delete
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => deleteJob(job.id)}
+                      className="text-red-600 hover:text-red-800 font-medium"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </td>
               </tr>
             ))

@@ -9,6 +9,8 @@ const FeedPage3 = ({ onNavigateBack }) => {
     const [users, setUsers] = useState([]);
     const [error, setError] = useState(null);
 
+    const [isAdmin, setIsAdmin] = useState(false);
+
     // Form state
     const [formData, setFormData] = useState({
         userId: '',
@@ -18,6 +20,11 @@ const FeedPage3 = ({ onNavigateBack }) => {
     });
 
     useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            setIsAdmin(user.role === 'Admin');
+        }
         fetchEmployeeOfMonth();
     }, []);
 
@@ -149,13 +156,15 @@ const FeedPage3 = ({ onNavigateBack }) => {
                     <h1 className="text-3xl font-bold text-[#020839] tracking-tight">Feed & Recognition</h1>
                     <p className="text-gray-500 mt-1">Celebrate success and stay updated with the team.</p>
                 </div>
-                <button
-                    onClick={handleOpenModal}
-                    className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-orange-600 transition-all shadow-sm flex items-center gap-2"
-                >
-                    <Plus size={20} />
-                    Add New
-                </button>
+                {isAdmin && (
+                    <button
+                        onClick={handleOpenModal}
+                        className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-orange-600 transition-all shadow-sm flex items-center gap-2"
+                    >
+                        <Plus size={20} />
+                        Add New
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">

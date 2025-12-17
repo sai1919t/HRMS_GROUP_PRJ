@@ -21,6 +21,15 @@ const ProfessionalEventsPage = () => {
     date: '',
     type: 'Conference'
   });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  React.useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setIsAdmin(user.role === 'Admin');
+    }
+  }, []);
 
   // Professional HRMS Events Data with high-quality images
   const [professionalEvents, setProfessionalEvents] = useState([
@@ -92,8 +101,8 @@ const ProfessionalEventsPage = () => {
     }
   ]);
 
-  const filteredEvents = activeTab === 'all' 
-    ? professionalEvents 
+  const filteredEvents = activeTab === 'all'
+    ? professionalEvents
     : professionalEvents.filter(event => event.category === activeTab);
 
   const handleJoinClick = (event) => {
@@ -124,7 +133,7 @@ const ProfessionalEventsPage = () => {
       attendees: '50+',
       image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=500&h=300&fit=crop&auto=format'
     };
-    
+
     setProfessionalEvents([event, ...professionalEvents]);
     setNewEvent({
       title: '',
@@ -165,7 +174,7 @@ const ProfessionalEventsPage = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Join Event</h3>
-              <button 
+              <button
                 onClick={() => setShowJoinModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -174,7 +183,7 @@ const ProfessionalEventsPage = () => {
                 </svg>
               </button>
             </div>
-            
+
             <div className="mb-4 p-3 bg-blue-50 rounded-lg">
               <h4 className="font-medium text-gray-900">{selectedEvent.title}</h4>
               <p className="text-sm text-gray-600">{selectedEvent.date} • {selectedEvent.location}</p>
@@ -255,7 +264,7 @@ const ProfessionalEventsPage = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Create New Event</h3>
-              <button 
+              <button
                 onClick={() => setShowCreateEventModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -361,15 +370,17 @@ const ProfessionalEventsPage = () => {
                     <h1 className="text-2xl font-bold text-gray-900">Events</h1>
                     <p className="mt-1 text-sm text-gray-600">Discover professional HR events and conferences</p>
                   </div>
-                  <button 
-                    onClick={handleCreateEvent}
-                    className="mt-2 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 shadow-sm"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Create Event
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={handleCreateEvent}
+                      className="mt-2 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 shadow-sm"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Create Event
+                    </button>
+                  )}
                 </div>
 
                 {/* Tab Navigation */}
@@ -379,11 +390,10 @@ const ProfessionalEventsPage = () => {
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                          activeTab === tab
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === tab
+                          ? 'border-blue-600 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          }`}
                       >
                         {tab.charAt(0).toUpperCase() + tab.slice(1)}
                         {tab !== 'all' && (
@@ -401,8 +411,8 @@ const ProfessionalEventsPage = () => {
                   {filteredEvents.map((event) => (
                     <div key={event.id} className="bg-white overflow-hidden border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-300 group">
                       <div className="relative h-40 bg-gray-200 overflow-hidden">
-                        <img 
-                          src={event.image} 
+                        <img
+                          src={event.image}
                           alt={event.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -417,7 +427,7 @@ const ProfessionalEventsPage = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="p-4">
                         <div className="flex items-center space-x-1 mb-2">
                           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,26 +435,25 @@ const ProfessionalEventsPage = () => {
                           </svg>
                           <span className="text-sm text-gray-500">{event.date}</span>
                         </div>
-                        
+
                         <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">{event.title}</h3>
-                        
+
                         <div className="flex items-center text-sm text-gray-500 mb-3">
                           <svg className="shrink-0 mr-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           </svg>
                           <span className="line-clamp-1">{event.location}</span>
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-2">{event.description}</p>
-                        
-                        <button 
+
+                        <button
                           onClick={() => isEventJoined(event.id) ? null : handleJoinClick(event)}
                           disabled={isEventJoined(event.id)}
-                          className={`w-full inline-flex items-center justify-center px-4 py-2.5 border text-sm font-medium rounded-lg transition-all duration-200 ${
-                            isEventJoined(event.id)
-                              ? 'bg-green-50 text-green-700 border-green-200 cursor-not-allowed'
-                              : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm'
-                          }`}
+                          className={`w-full inline-flex items-center justify-center px-4 py-2.5 border text-sm font-medium rounded-lg transition-all duration-200 ${isEventJoined(event.id)
+                            ? 'bg-green-50 text-green-700 border-green-200 cursor-not-allowed'
+                            : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm'
+                            }`}
                         >
                           {isEventJoined(event.id) ? (
                             <>
@@ -472,12 +481,14 @@ const ProfessionalEventsPage = () => {
                     </div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
                     <p className="text-sm text-gray-500 mb-4">There are no {activeTab} events at the moment.</p>
-                    <button 
-                      onClick={handleCreateEvent}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      Create First Event
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={handleCreateEvent}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Create First Event
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

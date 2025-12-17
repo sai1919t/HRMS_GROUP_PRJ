@@ -14,6 +14,7 @@ export const createUserTable = async () => {
       phone VARCHAR(50) DEFAULT '',
       date_of_joining DATE,
       status VARCHAR(20) DEFAULT 'ACTIVE',
+      role VARCHAR(20) DEFAULT 'Employee',
       profile_picture TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -28,6 +29,7 @@ export const createUserTable = async () => {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_joining DATE`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE'`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'Employee'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT`);
     console.log("✅ Users table created/updated successfully");
   } catch (error) {
@@ -46,14 +48,15 @@ export const createUser = async (
   date_of_joining = null,
   employee_id = '',
   profile_picture = '',
-  status = 'ACTIVE'
+  status = 'ACTIVE',
+  role = 'Employee'
 ) => {
   const query = `
-    INSERT INTO users (employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture)
-    VALUES ($1,$2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    INSERT INTO users (employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role)
+    VALUES ($1,$2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING *;
   `;
-  const values = [employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture];
+  const values = [employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role];
   const { rows } = await pool.query(query, values);
   return rows[0];
 };

@@ -12,7 +12,8 @@ export const createUserService = async (
     date_of_joining = null,
     employee_id = '',
     profile_picture = '',
-    status = 'ACTIVE'
+    status = 'ACTIVE',
+    role = 'Employee'
 ) => {
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
@@ -31,7 +32,8 @@ export const createUserService = async (
         date_of_joining,
         employee_id,
         profile_picture,
-        status
+        status,
+        role
     );
 
     return newUser;

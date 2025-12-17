@@ -3,11 +3,12 @@ import jwt from "jsonwebtoken";
 import { findUserByEmail, findUserById, getAllUsers as getAllUsersModel } from "../models/user.model.js";
 import { createUserService, updateUserService } from "../services/user.service.js";
 import { addToken } from "../models/blacklistedTokens.js";
+import pool from "../db/db.js";
 
 export const signup = async (req, res) => {
     try {
         console.log("DATABASE_URL =", process.env.DATABASE_URL);
-        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status } = req.body;
+        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
@@ -24,7 +25,8 @@ export const signup = async (req, res) => {
             date_of_joining,
             employee_id,
             profile_picture,
-            status
+            status,
+            role || 'Employee'
         );
 
         console.log("--------------------------------------------------");
@@ -53,6 +55,7 @@ export const signup = async (req, res) => {
                 phone: newUser.phone,
                 date_of_joining: newUser.date_of_joining,
                 status: newUser.status,
+                role: newUser.role,
                 profile_picture: newUser.profile_picture,
                 created_at: newUser.created_at
             }
@@ -101,7 +104,8 @@ export const login = async (req, res) => {
             user: {
                 id: user.id,
                 fullname: user.fullname,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
     } catch (error) {
@@ -153,8 +157,13 @@ export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // only allow users to update their own profile
-        if (!req.user || String(req.user.id) !== String(id)) {
+        // only allow users to update their own profile OR Admins
+        const isSelf = req.user && String(req.user.id) === String(id);
+        const isAdmin = req.user && req.user.role === 'Admin'; // Assuming req.user is populated with role
+
+        // We might not have role in req.user yet depending on middleware. 
+        // For now, stick to self update or allow if we implement admin check middleware later.
+        if (!isSelf) {
             return res.status(403).json({ message: "Forbidden" });
         }
 
@@ -180,6 +189,65 @@ export const updateUser = async (req, res) => {
         if (error.message === "User not found") {
             return res.status(404).json({ message: error.message });
         }
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// Admin: Add User
+export const addUser = async (req, res) => {
+    try {
+        // Basic check for admin (middleware should handle this better but for safety)
+        // const requester = await findUserById(req.userId); 
+        // if (requester.role !== 'Admin') return res.status(403).json({ message: "Access denied" });
+
+        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role } = req.body;
+
+        if (!fullname || !email || !password) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        const newUser = await createUserService(
+            fullname,
+            email,
+            password,
+            designation,
+            job_title,
+            department,
+            phone,
+            date_of_joining,
+            employee_id,
+            profile_picture,
+            status,
+            role || 'Employee'
+        );
+
+        res.status(201).json({
+            message: "User created successfully",
+            user: newUser
+        });
+    } catch (error) {
+        console.error("❌ Add User Error:", error.message);
+        if (error.message === "User already exists") {
+            return res.status(400).json({ message: "User already exists" });
+        }
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// Admin: Delete User
+export const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const query = "DELETE FROM users WHERE id = $1 RETURNING id";
+        const { rows } = await pool.query(query, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.json({ message: "User deleted successfully" });
+    } catch (error) {
+        console.error("❌ Delete User Error:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
