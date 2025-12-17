@@ -6,6 +6,8 @@ import {
     addComment,
     getComments
 } from '../../services/appreciationService';
+// Ensure you have created this file in src/services/meetingService.js
+import { getUpcomingMeetings } from '../../services/meetingService';
 
 const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateForm }) => {
     const [appreciations, setAppreciations] = useState([]);
@@ -14,10 +16,11 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     const [commentInputs, setCommentInputs] = useState({});
     const [showComments, setShowComments] = useState({});
     const [comments, setComments] = useState({});
+    const [meetings, setMeetings] = useState([]);
 
-    // Fetch appreciations on component mount
     useEffect(() => {
         fetchAppreciations();
+        fetchMeetings();
     }, []);
 
     const fetchAppreciations = async () => {
@@ -35,10 +38,58 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
         }
     };
 
+    const fetchMeetings = async () => {
+        try {
+            const res = await getUpcomingMeetings();
+
+            const meetingsData =
+                res?.data?.data ||
+                res?.data ||
+                res?.meetings ||
+                [];
+
+            if (Array.isArray(meetingsData)) {
+                // 1. Get today's date
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // 2. Filter: Keep only future/today meetings
+                const upcomingOnly = meetingsData.filter((meeting) => {
+                    const meetingDate = new Date(meeting.meeting_date);
+                    // Reset meeting time to midnight for accurate date comparison
+                    meetingDate.setHours(0,0,0,0);
+                    return meetingDate >= today;
+                });
+
+                // 3. Sort: Compare Date AND Time
+                upcomingOnly.sort((a, b) => {
+                    // Create Date objects for sorting
+                    const dateA = new Date(a.meeting_date);
+                    const dateB = new Date(b.meeting_date);
+
+                    // If dates are different, sort by date
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return dateA - dateB;
+                    }
+
+                    // If dates are the same, compare times (HH:MM:SS)
+                    // We treat the time strings like "11:00:00" vs "19:00:00"
+                    if (a.start_time < b.start_time) return -1;
+                    if (a.start_time > b.start_time) return 1;
+                    return 0;
+                });
+
+                // 4. Update state with the nearest meeting at index 0
+                setMeetings(upcomingOnly);
+            }
+        } catch (err) {
+            console.error('Failed to load meetings:', err);
+        }
+    };
+
     const handleLike = async (appreciationId) => {
         try {
             await toggleLike(appreciationId);
-            // Refresh appreciations to get updated like count
             fetchAppreciations();
         } catch (err) {
             console.error('Error toggling like:', err);
@@ -49,7 +100,6 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
         if (window.confirm('Are you sure you want to delete this appreciation?')) {
             try {
                 await deleteAppreciation(appreciationId);
-                // Remove from local state
                 setAppreciations(prev => prev.filter(a => a.id !== appreciationId));
             } catch (err) {
                 alert('Failed to delete appreciation. You can only delete your own posts.');
@@ -71,14 +121,11 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
 
         try {
             await addComment(appreciationId, commentText);
-            // Clear input
             setCommentInputs(prev => ({
                 ...prev,
                 [appreciationId]: ''
             }));
-            // Refresh appreciations
             fetchAppreciations();
-            // Refresh comments if they're shown
             if (showComments[appreciationId]) {
                 fetchComments(appreciationId);
             }
@@ -96,7 +143,6 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
             [appreciationId]: !isCurrentlyShown
         }));
 
-        // Fetch comments if showing
         if (!isCurrentlyShown) {
             fetchComments(appreciationId);
         }
@@ -117,11 +163,13 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     };
 
     const formatTime = (dateString) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     };
@@ -361,18 +409,33 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                             </button>
                         </div>
 
-                        {/* Don't Miss Out! Training Session */}
+                        {/* Don't Miss Out! Upcoming Training Session */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
-                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">Don't Miss Out! Upcoming Training Session</h3>
-                            <div className="space-y-2 mb-5">
-                                <p className="text-sm text-gray-700">
-                                    <span className="font-bold">Date:</span> 29 Oct
-                                </p>
-                                <p className="text-sm text-gray-700">
-                                    <span className="font-bold">Time:</span> 9:00 AM - 12:00 PM
-                                </p>
-                            </div>
-                            <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
+                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">
+                                Don't Miss Out! Upcoming Training Session
+                            </h3>
+
+                            {/* Check if we have at least one meeting */}
+                            {meetings.length > 0 ? (
+                                <div className="space-y-2 mb-5">
+                                    {/* We only render meetings[0] -> The single nearest meeting */}
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {meetings[0].title}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                        <span className="font-bold">Date:</span>{" "}
+                                        {meetings[0].meeting_date ? new Date(meetings[0].meeting_date).toLocaleDateString() : 'TBA'}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                        <span className="font-bold">Time:</span>{" "}
+                                        {meetings[0].start_time} - {meetings[0].end_time}
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 mb-5">No upcoming meetings</p>
+                            )}
+
+                            <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold">
                                 Register
                             </button>
                         </div>

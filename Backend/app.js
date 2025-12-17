@@ -8,6 +8,7 @@ import applicationRoutes from "./routes/application.routes.js";
 import interviewRoutes from "./routes/interview.routes.js";
 import offerRoutes from "./routes/offer.routes.js";
 import { initDb } from "./db/initDb.js";
+import meetingRoutes from "./routes/meeting.routes.js";
 const app = express();
 
 app.use(cors());
@@ -24,6 +25,8 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api", applicationRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/meetings", meetingRoutes);
+
 
 // Serve static files
 app.use('/assets', express.static('assets'));
