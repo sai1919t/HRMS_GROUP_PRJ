@@ -15,6 +15,7 @@ import Dashboard1 from './pages/Dashboard1'
 import ProfessionalEventsPage from './pages/ProfessionalEventsPage'
 import Feed from './pages/Feed'
 import Profile from './pages/Profile'
+import ProfileView from './components/Profile/ProfileView'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
 import RecruitmentLayout from "./pages/recruitment/RecruitmentLayout";
@@ -36,6 +37,7 @@ function App() {
           <Route path="/Signup" element={<SignUp />} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard1 /></Layout></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Layout><Profile /></Layout></ProtectedRoute>} />
+          <Route path="/profile/:id" element={<ProtectedRoute><Layout><ProfileView /></Layout></ProtectedRoute>} />
           <Route path="/event" element={<ProtectedRoute><Layout><ProfessionalEventsPage /></Layout></ProtectedRoute>} />
           <Route path="/recognition" element={<ProtectedRoute><Layout><Recognition /></Layout></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute><Layout><Feed /></Layout></ProtectedRoute>} />

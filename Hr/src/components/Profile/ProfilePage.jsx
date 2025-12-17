@@ -14,7 +14,7 @@ import {
   User,
 } from "lucide-react";
 
-const ProfilePage = ({ onEditProfile }) => {
+const ProfilePage = ({ onEditProfile, userOverride }) => {
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -23,7 +23,12 @@ const ProfilePage = ({ onEditProfile }) => {
     }
   });
 
+  // If a user object is passed via props (viewing another profile), prefer it
   useEffect(() => {
+    if (userOverride) {
+      setUser(userOverride);
+      return;
+    }
     const onStorage = (e) => {
       if (e.key === "user") {
         try {
@@ -35,7 +40,7 @@ const ProfilePage = ({ onEditProfile }) => {
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [userOverride]);
 
   const userData = user ? {
     ...user,
@@ -95,16 +100,18 @@ const ProfilePage = ({ onEditProfile }) => {
                 <p className="text-sm text-gray-500 mt-2 max-w-md">{userData.bio}</p>
 
                 <div className="mt-5 flex gap-4">
-                  <button
-                    onClick={onEditProfile}
-                    className="bg-[#266ECD] text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition"
-                  >
-                    Edit Profile
-                  </button>
+                  {!userOverride && (
+                    <button
+                      onClick={onEditProfile}
+                      className="bg-[#266ECD] text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition"
+                    >
+                      Edit Profile
+                    </button>
+                  )}
 
                   <button
                     className="border border-gray-300 px-5 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-100 active:scale-95 transition"
-                    onClick={() => navigator.clipboard?.writeText(user.email)}
+                    onClick={() => navigator.clipboard?.writeText(userData.email)}
                   >
                     Copy email
                   </button>

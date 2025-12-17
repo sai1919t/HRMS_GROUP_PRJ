@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { findUserByEmail, getAllUsers as getAllUsersModel } from "../models/user.model.js";
+import { findUserByEmail, findUserById, getAllUsers as getAllUsersModel } from "../models/user.model.js";
 import { createUserService, updateUserService } from "../services/user.service.js";
 import { addToken } from "../models/blacklistedTokens.js";
 
@@ -134,6 +134,21 @@ export const getAllUsers = async (req, res) => {
     }
 };
 
+export const getUserById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await findUserById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        // remove sensitive fields
+        const { password, ...rest } = user;
+        res.status(200).json({ user: rest });
+    } catch (error) {
+        console.error("❌ Get User By ID Error:", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
 export const updateUser = async (req, res) => {
     try {
         const { id } = req.params;

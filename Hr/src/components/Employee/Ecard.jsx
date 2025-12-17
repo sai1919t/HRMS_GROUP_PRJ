@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Mail, Phone, MoreVertical } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Ecard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -108,10 +110,10 @@ const Ecard = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-auto">
-            <button className="w-full py-2 px-4 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+            <button onClick={() => navigate(`/profile/${u.id}`)} className="w-full py-2 px-4 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
               View Profile
             </button>
-            <button className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all shadow-sm">
+            <button onClick={() => navigate(`/chat?userId=${u.id}`)} className="w-full py-2 px-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all shadow-sm">
               Message
             </button>
           </div>

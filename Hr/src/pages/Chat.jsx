@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react'
 import io from "socket.io-client";
 import axios from "axios";
 import { Search, MoreVertical, Send, Phone, Video, Info, ArrowLeft, Clock } from "lucide-react";
+import { useSearchParams } from 'react-router-dom';
 
 const socket = io.connect("http://localhost:3000");
 
 const Chat = () => {
+  const [searchParams] = useSearchParams();
+  const requestedUserId = searchParams.get('userId');
+
   const [recentChats, setRecentChats] = useState([]); // Recent conversations
   const [allUsers, setAllUsers] = useState([]); // All users for search
   const [displayedContacts, setDisplayedContacts] = useState([]); // What is actually shown
@@ -83,6 +87,11 @@ const Chat = () => {
               isRecent: false
             }));
           setAllUsers(all);
+          // If page was opened with ?userId=... select that chat automatically
+          if (requestedUserId) {
+            setSelectedChat(requestedUserId);
+            setChatListOpen(false);
+          }
         } catch (err) {
           if (err.response && err.response.status === 401) {
             if (err.response.data && err.response.data.message === "Token expired") {
@@ -170,6 +179,32 @@ const Chat = () => {
     }
 
   }, [searchQuery, recentChats, allUsers, onlineUserIds]);
+
+  // If a chat was requested via query param but that user is not in our lists, fetch them
+  useEffect(() => {
+    const addRequestedUser = async () => {
+      if (!requestedUserId) return;
+      const exists = allUsers.find(u => String(u.id) === String(requestedUserId)) || recentChats.find(r => String(r.id) === String(requestedUserId));
+      if (exists) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`http://localhost:3000/api/users/${requestedUserId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const u = data.user;
+        if (u) {
+          setAllUsers(prev => [...prev, { id: u.id, name: u.fullname, role: u.email, message: 'Start a new conversation', time: '', avatar: u.fullname ? u.fullname.charAt(0).toUpperCase() : '?' }]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch requested chat user', err);
+      }
+    };
+    addRequestedUser();
+  }, [requestedUserId, allUsers, recentChats]);
 
 
   // --- 4. REAL-TIME MESSAGING LOGIC ---
