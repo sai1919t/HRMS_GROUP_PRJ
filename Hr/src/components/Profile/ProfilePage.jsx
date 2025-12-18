@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   Heart,
   Download,
   Globe,
@@ -55,15 +57,24 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
     bio: "Passionate HR specialist focused on people and culture.",
   };
 
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-100 to-gray-200 p-6 sm:p-10">
 
       {/* HEADER */}
-      <div className="bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-8 mb-10 border border-white/40">
-        <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
-          My Profile
-        </h1>
-        <p className="text-gray-600 mt-1">Manage your personal information & settings</p>
+      <div className="bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-6 mb-8 border border-white/40 flex items-center justify-between">
+        <div className="flex items-center">
+          <button onClick={() => navigate(-1)} className="p-2 mr-4 rounded-md hover:bg-gray-100">
+            <ArrowLeft />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              My Profile
+            </h1>
+            <p className="text-gray-600 mt-1">Manage your personal information & settings</p>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-10">
@@ -122,21 +133,21 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
 
           {/* INTERACTIVE MENU SECTIONS */}
           <SectionCard>
-            <MenuItem icon={<Heart />} label="Latest feed" />
-            <MenuItem icon={<Download />} label="Latest uploads" />
+            <MenuItem icon={<Heart />} label="Latest feed" onClick={() => navigate('/profile/feed')} />
+            <MenuItem icon={<Download />} label="Latest uploads" onClick={() => navigate('/profile/uploads')} />
           </SectionCard>
 
           <SectionCard>
-            <MenuItem icon={<Globe />} label="Languages" />
-            <MenuItem icon={<MapPin />} label="Location" />
-            <MenuItem icon={<FileText />} label="Files and documents" />
-            <MenuItem icon={<Monitor />} label="Display" />
+            <MenuItem icon={<Globe />} label="Languages" onClick={() => navigate('/profile/languages')} />
+            <MenuItem icon={<MapPin />} label="Location" onClick={() => navigate('/profile/location')} />
+            <MenuItem icon={<FileText />} label="Files and documents" onClick={() => navigate('/profile/files')} />
+            <MenuItem icon={<Monitor />} label="Display" onClick={() => navigate('/profile/display')} />
           </SectionCard>
 
           <SectionCard>
-            <MenuItem icon={<Trash2 />} label="Recently deleted" />
-            <MenuItem icon={<Clock />} label="Clear History" />
-            <MenuItem icon={<LogOut className="rotate-180" />} label="Exit" />
+            <MenuItem icon={<Trash2 />} label="Recently deleted" onClick={() => navigate('/profile/deleted')} />
+            <MenuItem icon={<Clock />} label="Clear History" onClick={() => navigate('/profile/clear-history')} />
+            <MenuItem icon={<LogOut className="rotate-180" />} label="Exit" onClick={() => navigate('/profile/exit')} />
           </SectionCard>
         </div>
 
@@ -144,9 +155,9 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
         <div className="w-full lg:w-80">
           <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300">
             <div className="space-y-6">
-              <SidebarItem icon={<Heart />} label="Appreciations" />
-              <SidebarItem icon={<UserPlus />} label="My Referrals" />
-              <SidebarItem icon={<Settings />} label="Settings" />
+              <SidebarItem icon={<Heart />} label="Appreciations" onClick={() => navigate('/recognition')} />
+              <SidebarItem icon={<UserPlus />} label="My Referrals" onClick={() => navigate('/profile/referrals')} />
+              <SidebarItem icon={<Settings />} label="Settings" onClick={() => navigate('/settings')} />
 
               <div className="pt-4">
                 <button
@@ -180,8 +191,8 @@ const SectionCard = ({ children }) => (
   </div>
 );
 
-const MenuItem = ({ icon, label }) => (
-  <button className="flex items-center gap-4 w-full text-left group p-3 rounded-xl hover:bg-gray-100 active:scale-[0.98] transition">
+const MenuItem = ({ icon, label, onClick }) => (
+  <button onClick={onClick} className="flex items-center gap-4 w-full text-left group p-3 rounded-xl hover:bg-gray-100 active:scale-[0.98] transition">
     <span className="text-gray-700 group-hover:text-[#266ECD] transition">{icon}</span>
     <span className="text-lg font-medium text-gray-900 group-hover:text-[#266ECD] transition">
       {label}
@@ -189,8 +200,8 @@ const MenuItem = ({ icon, label }) => (
   </button>
 );
 
-const SidebarItem = ({ icon, label }) => (
-  <button className="flex items-center gap-3 w-full text-left text-gray-600 hover:text-[#266ECD] hover:bg-gray-100 p-3 rounded-xl active:scale-[0.98] transition">
+const SidebarItem = ({ icon, label, onClick }) => (
+  <button onClick={onClick} className="flex items-center gap-3 w-full text-left text-gray-600 hover:text-[#266ECD] hover:bg-gray-100 p-3 rounded-xl active:scale-[0.98] transition">
     {icon}
     <span className="text-sm font-medium">{label}</span>
   </button>

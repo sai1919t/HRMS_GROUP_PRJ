@@ -20,6 +20,16 @@ import Promotion from './pages/Promotion'
 import Redemption from './pages/Redemption'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
+import ProfileFeed from './pages/ProfileFeed'
+import ProfileUploads from './pages/ProfileUploads'
+import ProfileLanguages from './pages/ProfileLanguages'
+import ProfileLocation from './pages/ProfileLocation'
+import ProfileFiles from './pages/ProfileFiles'
+import ProfileDisplay from './pages/ProfileDisplay'
+import ProfileDeleted from './pages/ProfileDeleted'
+import ProfileClearHistory from './pages/ProfileClearHistory'
+import ProfileExit from './pages/ProfileExit'
+import ProfileReferrals from './pages/ProfileReferrals'
 import CookiesPolicy from './pages/CookiesPolicy'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import Terms from './pages/Terms'
@@ -61,6 +71,18 @@ function App() {
           <Route path='/settings/cookies' element={<ProtectedRoute><Layout><CookiesPolicy /></Layout></ProtectedRoute>} />
           <Route path='/settings/contact' element={<ProtectedRoute><Layout><Contact /></Layout></ProtectedRoute>} />
           <Route path='/settings/feedback' element={<ProtectedRoute><Layout><Feedback /></Layout></ProtectedRoute>} />
+
+          <Route path='/profile/feed' element={<ProtectedRoute><Layout><ProfileFeed /></Layout></ProtectedRoute>} />
+          <Route path='/profile/uploads' element={<ProtectedRoute><Layout><ProfileUploads /></Layout></ProtectedRoute>} />
+          <Route path='/profile/languages' element={<ProtectedRoute><Layout><ProfileLanguages /></Layout></ProtectedRoute>} />
+          <Route path='/profile/location' element={<ProtectedRoute><Layout><ProfileLocation /></Layout></ProtectedRoute>} />
+          <Route path='/profile/files' element={<ProtectedRoute><Layout><ProfileFiles /></Layout></ProtectedRoute>} />
+          <Route path='/profile/display' element={<ProtectedRoute><Layout><ProfileDisplay /></Layout></ProtectedRoute>} />
+          <Route path='/profile/deleted' element={<ProtectedRoute><Layout><ProfileDeleted /></Layout></ProtectedRoute>} />
+          <Route path='/profile/clear-history' element={<ProtectedRoute><Layout><ProfileClearHistory /></Layout></ProtectedRoute>} />
+          <Route path='/profile/exit' element={<ProtectedRoute><Layout><ProfileExit /></Layout></ProtectedRoute>} />
+          <Route path='/profile/referrals' element={<ProtectedRoute><Layout><ProfileReferrals /></Layout></ProtectedRoute>} />
+
           <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
         </Routes>
       </div>
