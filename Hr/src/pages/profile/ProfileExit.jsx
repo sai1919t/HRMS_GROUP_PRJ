@@ -6,7 +6,6 @@ const ProfileExit = () => {
   const navigate = useNavigate();
 
   const exit = () => {
-    // For safety, do not perform logout here; provide instructions or confirm
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = '/login';

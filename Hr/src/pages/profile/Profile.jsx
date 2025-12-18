@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import ProfilePage from '../components/Profile/ProfilePage';
-import EditProfilePage from '../components/Profile/EditProfilePage';
+import ProfilePage from '../../components/Profile/ProfilePage';
+import EditProfilePage from '../../components/Profile/EditProfilePage';
 
 const Profile = () => {
     const [isEditing, setIsEditing] = useState(false);
@@ -14,7 +14,6 @@ const Profile = () => {
     };
 
     const handleSaveProfile = (updatedUser) => {
-        // called by EditProfilePage after successful save
         if (updatedUser) {
             localStorage.setItem('user', JSON.stringify(updatedUser));
         }
