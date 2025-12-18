@@ -20,6 +20,12 @@ import Promotion from './pages/Promotion'
 import Redemption from './pages/Redemption'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
+import CookiesPolicy from './pages/CookiesPolicy'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import Terms from './pages/Terms'
+import Contact from './pages/Contact'
+import Feedback from './pages/Feedback'
+import RateApp from './pages/RateApp'
 import RecruitmentLayout from "./pages/recruitment/RecruitmentLayout";
 import Applications from "./pages/recruitment/Applications";
 import Interviews from "./pages/recruitment/Interviews";
@@ -49,6 +55,12 @@ function App() {
           <Route path='/employees' element={<ProtectedRoute><Layout><EmployeesPage /></Layout></ProtectedRoute>} />
           <Route path='/chat' element={<ProtectedRoute><Layout><Chat /></Layout></ProtectedRoute>} />
           <Route path='/settings' element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
+          <Route path='/settings/rate' element={<ProtectedRoute><Layout><RateApp /></Layout></ProtectedRoute>} />
+          <Route path='/settings/privacy' element={<ProtectedRoute><Layout><PrivacyPolicy /></Layout></ProtectedRoute>} />
+          <Route path='/settings/terms' element={<ProtectedRoute><Layout><Terms /></Layout></ProtectedRoute>} />
+          <Route path='/settings/cookies' element={<ProtectedRoute><Layout><CookiesPolicy /></Layout></ProtectedRoute>} />
+          <Route path='/settings/contact' element={<ProtectedRoute><Layout><Contact /></Layout></ProtectedRoute>} />
+          <Route path='/settings/feedback' element={<ProtectedRoute><Layout><Feedback /></Layout></ProtectedRoute>} />
           <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
         </Routes>
       </div>

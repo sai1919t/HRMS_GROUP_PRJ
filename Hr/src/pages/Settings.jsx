@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bell, Moon, Star, Link as LinkIcon, 
   Shield, FileText, Cookie, 
@@ -7,19 +8,20 @@ import {
 } from 'lucide-react';
 
 const SettingsPage = () => {
+  const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
   const settingsItems = [
     { icon: <Bell size={22} />, label: 'Notification', hasToggle: true, toggleState: notifications, onToggle: () => setNotifications(!notifications) },
     { icon: <Moon size={22} />, label: 'Dark Mode', hasToggle: true, toggleState: darkMode, onToggle: () => setDarkMode(!darkMode) },
-    { icon: <Star size={22} />, label: 'Rate App' },
+    { icon: <Star size={22} />, label: 'Rate App', path: '/settings/rate' },
     { icon: <LinkIcon size={22} />, label: 'Share Link' },
-    { icon: <Shield size={22} />, label: 'Privacy Policy' },
-    { icon: <FileText size={22} />, label: 'Terms and Conditions' },
-    { icon: <Cookie size={22} />, label: 'Cookies Policy' },
-    { icon: <Phone size={22} />, label: 'Contact' },
-    { icon: <MessageSquare size={22} />, label: 'Feedback' },
+    { icon: <Shield size={22} />, label: 'Privacy Policy', path: '/settings/privacy' },
+    { icon: <FileText size={22} />, label: 'Terms and Conditions', path: '/settings/terms' },
+    { icon: <Cookie size={22} />, label: 'Cookies Policy', path: '/settings/cookies' },
+    { icon: <Phone size={22} />, label: 'Contact', path: '/settings/contact' },
+    { icon: <MessageSquare size={22} />, label: 'Feedback', path: '/settings/feedback' },
     { icon: <LogOut size={22} />, label: 'Logout', isLogout: true },
   ];
 
@@ -39,7 +41,13 @@ const SettingsPage = () => {
             className={`flex items-center justify-between px-6 py-4 ${
               index !== settingsItems.length - 1 ? 'border-b border-gray-100' : ''
             } ${item.isLogout ? 'hover:bg-red-50 cursor-pointer' : 'hover:bg-gray-50 cursor-pointer'}`}
-            onClick={item.onToggle || (() => {})}
+            onClick={(e) => {
+              // prevent toggle click from bubbling
+              if (item.hasToggle) return;
+              if (item.onToggle) return;
+              if (item.path) navigate(item.path);
+              // handle logout or other actions here if needed
+            }}
           >
             <div className="flex items-center">
               <div className={`p-2 rounded-lg mr-4 ${
