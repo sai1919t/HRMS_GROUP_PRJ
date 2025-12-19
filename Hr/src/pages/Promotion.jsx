@@ -60,7 +60,8 @@ const Promotion = () => {
   const fetchPromotions = async () => {
     setLoadingPromotions(true);
     try {
-      const res = await fetch(`${apiBase}/api/promotions`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiBase}/api/promotions`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
       if (res.ok) {
         const json = await res.json();
         setPromotions(json.promotions || []);
@@ -119,7 +120,7 @@ const Promotion = () => {
   const applyToPromotion = async (promotionId) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) { alert('Please login to apply'); return; }
+      if (!token) { alert('Please login'); return; }
       const cover = prompt('Enter a short cover note (optional)') || '';
       const res = await fetch(`${apiBase}/api/promotions/${promotionId}/apply`, {
         method: 'POST',
@@ -135,6 +136,52 @@ const Promotion = () => {
     }
   };
 
+  // Admin: fetch applications for a promotion
+  const [applications, setApplications] = useState([]);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [viewingPromotionId, setViewingPromotionId] = useState(null);
+
+  const fetchApplications = async (promotionId) => {
+    setAppsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiBase}/api/promotions/${promotionId}/applications`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (res.ok) {
+        const json = await res.json();
+        setApplications(json.applications || []);
+        setViewingPromotionId(promotionId);
+      } else {
+        const json = await res.json();
+        alert(json.message || 'Failed to fetch applications');
+      }
+    } catch (err) {
+      console.error('Failed to fetch applications', err);
+    } finally {
+      setAppsLoading(false);
+    }
+  };
+
+  const updateApplicationStatus = async (promotionId, appId, status) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) { alert('Please login'); return; }
+      const res = await fetch(`${apiBase}/api/promotions/${promotionId}/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.message || 'Failed to update'); return; }
+      alert('Application updated');
+      // Refresh apps, promotions and employee data
+      fetchApplications(promotionId);
+      fetchPromotions();
+      fetchEmployees();
+    } catch (err) {
+      console.error('Failed to update application', err);
+      alert('Failed to update application');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -219,14 +266,50 @@ const Promotion = () => {
                       ) : promotions.length === 0 ? (
                         <div className="text-sm text-gray-500">No promotions yet</div>
                       ) : promotions.map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                          <div>
-                            <div className="font-medium text-gray-900">{p.employee_name} → <span className="text-green-600">{p.new_role}</span></div>
-                            <div className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</div>
+                        <div key={p.id} className="p-3 bg-gray-50 rounded-lg border">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-gray-900">{p.employee_name} → <span className="text-green-600">{p.new_role}</span></div>
+                              <div className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</div>
+                            </div>
+                            <div>
+                              {isAdmin && (
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => fetchApplications(p.id)} className="text-sm text-blue-600">View Applications</button>
+                                  <button onClick={() => applyToPromotion(p.id)} className="text-sm text-blue-600">Create Application</button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <button onClick={() => applyToPromotion(p.id)} className="text-sm text-blue-600">Apply</button>
-                          </div>
+
+                          {/* Applications panel for admins */}
+                          {isAdmin && viewingPromotionId === p.id && (
+                            <div className="mt-3 bg-white border rounded p-3">
+                              {appsLoading ? (
+                                <div className="text-sm text-gray-500">Loading applications…</div>
+                              ) : applications.length === 0 ? (
+                                <div className="text-sm text-gray-500">No applications yet</div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {applications.map(app => (
+                                    <div key={app.id} className="flex items-center justify-between p-2 border rounded">
+                                      <div>
+                                        <div className="font-medium text-gray-900">{app.applicant_name} <span className="text-xs text-gray-500">({app.applicant_email})</span></div>
+                                        <div className="text-sm text-gray-500">{app.cover_letter}</div>
+                                        <div className="text-xs mt-1">Status: <span className="font-semibold">{app.status}</span></div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button onClick={() => updateApplicationStatus(p.id, app.id, 'accepted')} className="px-3 py-1 bg-green-100 text-green-700 rounded">Accept</button>
+                                        <button onClick={() => updateApplicationStatus(p.id, app.id, 'rejected')} className="px-3 py-1 bg-red-100 text-red-700 rounded">Reject</button>
+                                        <button onClick={() => updateApplicationStatus(p.id, app.id, 'cancelled')} className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded">Cancel</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                         </div>
                       ))}
                     </div>
@@ -297,128 +380,130 @@ const Promotion = () => {
             </div>
           </div>
 
-          {/* Right Section - Promotion Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden h-full">
-              <div className="p-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
-                <h2 className="text-xl font-bold">Promotion Form</h2>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {/* Current Details */}
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <h3 className="text-lg font-bold text-gray-900">Current Details</h3>
-                  </div>
-                  
-                  <div className="space-y-4 bg-blue-50 p-5 rounded-xl border border-blue-100">
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                        <Users size={14} />
-                        Employee Name
-                      </div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {selectedEmployee?.name || 'Emilly'}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-gray-600">Employee ID</div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {selectedEmployee?.employeeId || 'EMP-987'}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-gray-600">Current Role</div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {selectedEmployee?.currentRole || 'Sales Executive'}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-gray-600">Department</div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {selectedEmployee?.dept || 'Sales'}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                        <DollarSign size={14} />
-                        Current Salary
-                      </div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        {selectedEmployee?.currentSalary || '0.00 to 6.00'}
-                      </div>
-                    </div>
-                  </div>
+          {/* Right Section - Promotion Form (admin only) */}
+          {isAdmin && (
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden h-full">
+                <div className="p-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                  <h2 className="text-xl font-bold">Promotion Form</h2>
                 </div>
-
-                {/* New Promotion Details */}
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <h3 className="text-lg font-bold text-gray-900">New Promotion Details</h3>
+                
+                <div className="p-6 space-y-6">
+                  {/* Current Details */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <h3 className="text-lg font-bold text-gray-900">Current Details</h3>
+                    </div>
+                    
+                    <div className="space-y-4 bg-blue-50 p-5 rounded-xl border border-blue-100">
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                          <Users size={14} />
+                          Employee Name
+                        </div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedEmployee?.name || 'Emilly'}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-gray-600">Employee ID</div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedEmployee?.employeeId || 'EMP-987'}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-gray-600">Current Role</div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedEmployee?.currentRole || 'Sales Executive'}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-gray-600">Department</div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedEmployee?.dept || 'Sales'}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                          <DollarSign size={14} />
+                          Current Salary
+                        </div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedEmployee?.currentSalary || '0.00 to 6.00'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        New Role
-                      </label>
-                      <select value={newRole} onChange={(e)=>setNewRole(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <option value="">Select Role</option>
-                        <option>Senior Software Engineer</option>
-                        <option>Senior Sales Executive</option>
-                        <option>Senior HR Manager</option>
-                        <option>Senior Finance Analyst</option>
-                      </select>
+
+                  {/* New Promotion Details */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <h3 className="text-lg font-bold text-gray-900">New Promotion Details</h3>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        New Salary
-                      </label>
-                      <input
-                        type="text"
-                        value={newSalary}
-                        onChange={(e)=>setNewSalary(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        placeholder="--Enter salary--"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Promotion Reason
-                      </label>
-                      <textarea
-                        value={reason}
-                        onChange={(e)=>setReason(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                        rows="4"
-                        placeholder="Enter Reason for Promotion......"
-                      />
-                    </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-4">
-                      <button onClick={savePromotion} className={`flex-1 ${isAdmin ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'} px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl`}>
-                        <Save size={18} />
-                        Save Promotion
-                      </button>
-                      <button onClick={()=>{ setNewRole(''); setNewSalary(''); setReason(''); }} className="flex-1 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 px-6 py-3 rounded-xl hover:from-gray-300 hover:to-gray-400 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
-                        <X size={18} />
-                        Cancel
-                      </button>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          New Role
+                        </label>
+                        <select value={newRole} onChange={(e)=>setNewRole(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                          <option value="">Select Role</option>
+                          <option>Senior Software Engineer</option>
+                          <option>Senior Sales Executive</option>
+                          <option>Senior HR Manager</option>
+                          <option>Senior Finance Analyst</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          New Salary
+                        </label>
+                        <input
+                          type="text"
+                          value={newSalary}
+                          onChange={(e)=>setNewSalary(e.target.value)}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                          placeholder="--Enter salary--"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Promotion Reason
+                        </label>
+                        <textarea
+                          value={reason}
+                          onChange={(e)=>setReason(e.target.value)}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                          rows="4"
+                          placeholder="Enter Reason for Promotion......"
+                        />
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 pt-4">
+                        <button onClick={savePromotion} className={`flex-1 ${isAdmin ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'} px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl`}>
+                          <Save size={18} />
+                          Save Promotion
+                        </button>
+                        <button onClick={()=>{ setNewRole(''); setNewSalary(''); setReason(''); }} className="flex-1 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 px-6 py-3 rounded-xl hover:from-gray-300 hover:to-gray-400 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                          <X size={18} />
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

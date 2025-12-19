@@ -26,3 +26,30 @@ export const authMiddleware = async (req, res, next) => {
         res.status(401).json({ message: "Invalid or expired token." });
     }
 };
+
+// Optional auth: parse token if present, but don't reject requests without token
+export const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return next();
+
+    const isBlacklisted = await isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      console.warn('optionalAuth: token blacklisted');
+      return next();
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+      req.user = decoded;
+      req.token = token;
+    } catch (err) {
+      console.warn('optionalAuth: token invalid', err.message);
+      // ignore invalid token, don't block request
+    }
+    return next();
+  } catch (err) {
+    console.error('optionalAuth error', err);
+    return next();
+  }
+};
