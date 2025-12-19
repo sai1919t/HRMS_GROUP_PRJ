@@ -41,6 +41,8 @@ const FeedPage1 = ({ onNavigateBack }) => {
     };
 
     // Fetch initial data
+    const [userPoints, setUserPoints] = useState(0);
+
     useEffect(() => {
         const fetchUsers = async () => {
             try {
@@ -54,8 +56,31 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 console.error("Failed to fetch users", error);
             }
         };
+
+        const fetchUserPoints = async () => {
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                if (!u || !u.id) return;
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}/api/users/${u.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                setUserPoints(data.user?.points || 0);
+                // update local user copy
+                if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+            } catch (err) {
+                console.error('Failed to fetch user points', err);
+            }
+        };
+
         fetchUsers();
         fetchFeed();
+        fetchUserPoints();
+
+        // listen for activity updates to refresh points
+        const onActivity = () => fetchUserPoints();
+        window.addEventListener('activity:updated', onActivity);
+        return () => window.removeEventListener('activity:updated', onActivity);
     }, []);
 
     const handleGivePoints = () => {
@@ -195,16 +220,16 @@ const FeedPage1 = ({ onNavigateBack }) => {
                     <div className="space-y-6">
                         {/* New Point Alert */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
-                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">New Point Alert!</h3>
+                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">Your Points</h3>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="text-5xl font-bold text-[#266ECD]">250</div>
+                                <div className="text-5xl font-bold text-[#266ECD]">{userPoints?.toLocaleString() || 0}</div>
                                 <div className="w-10 h-10 rounded-full bg-[#266ECD] flex items-center justify-center">
                                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 </div>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">Reward points with Manager</p>
+                            <p className="text-sm text-gray-600 mb-4">Reward points balance</p>
                             <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
                                 <Link to="/redemption">View Redemption Center</Link>
                             </button>

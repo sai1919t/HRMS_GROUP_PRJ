@@ -41,6 +41,10 @@ app.use('/assets', express.static('assets'));
 import uploadsRoutes from './routes/uploads.routes.js';
 app.use('/api/uploads', uploadsRoutes);
 
+// Redemption routes
+import redeemRoutes from './routes/redeem.routes.js';
+app.use('/api/redeem', redeemRoutes);
+
 app.get("/", (req, res) => {
     res.send("Hello World");
 });

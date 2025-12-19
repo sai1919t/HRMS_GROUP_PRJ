@@ -203,6 +203,14 @@ const initDb = async () => {
     } catch (err) {
       console.error('Error creating points table', err);
     }
+
+    // create redemption tables
+    try {
+      const { createRedemptionTables } = await import('./models/redemption.model.js');
+      await createRedemptionTables();
+    } catch (err) {
+      console.error('Error creating redemption tables', err);
+    }
 };
 
 initDb();

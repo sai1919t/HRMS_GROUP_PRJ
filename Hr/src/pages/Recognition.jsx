@@ -574,7 +574,7 @@ export default function RecognitionPage() {
               <div className="flex items-center justify-between h-24 rounded-2xl px-5 bg-linear-to-r from-blue-900 to-blue-700 text-white shadow">
                 <div className="flex flex-col">
                   <span className="text-sm opacity-90">Total Points</span>
-                  <span className="text-2xl font-semibold">2,847</span>
+                  <span className="text-2xl font-semibold">{(JSON.parse(localStorage.getItem('user') || '{}').points || 0).toLocaleString()}</span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
                   <img src={coin} alt="Coin Icon" className="w-12 h-12" />
