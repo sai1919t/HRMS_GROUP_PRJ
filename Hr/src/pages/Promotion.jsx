@@ -9,12 +9,42 @@ const Promotion = () => {
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [designationFilter, setDesignationFilter] = useState('All');
 
-  const employees = [
-    { id: 1, name: 'John', dept: 'IT', tenure: '4 Years', currentRole: 'Software Engineer', currentSalary: '0.00 to 6.00', employeeId: 'EMP-001' },
-    { id: 2, name: 'Emilly', dept: 'Sales', tenure: '2 Years', currentRole: 'Sales Executive', currentSalary: '0.00 to 6.00', employeeId: 'EMP-987' },
-    { id: 3, name: 'Robin', dept: 'HR', tenure: '5 Years', currentRole: 'HR Manager', currentSalary: '0.00 to 6.00', employeeId: 'EMP-003' },
-    { id: 4, name: 'Micheal', dept: 'Finance', tenure: '3 Years', currentRole: 'Finance Analyst', currentSalary: '0.00 to 6.00', employeeId: 'EMP-004' },
-  ];
+  const [promotions, setPromotions] = useState([]);
+  const [newRole, setNewRole] = useState('');
+  const [newSalary, setNewSalary] = useState('');
+  const [reason, setReason] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loadingPromotions, setLoadingPromotions] = useState(false);
+  
+
+  const [employees, setEmployees] = useState([]);
+
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiBase}/api/users`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.users || data;
+        const normalized = list.map(u => ({
+          id: u.id,
+          name: u.fullname || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim() || `User ${u.id}`,
+          dept: u.department || u.dept || 'General',
+          tenure: u.date_of_joining ? `${Math.max(0, new Date().getFullYear() - new Date(u.date_of_joining).getFullYear())} Years` : (u.tenure || 'N/A'),
+          currentRole: u.designation || u.currentRole || 'N/A',
+          currentSalary: u.salary || u.currentSalary || '0.00 to 6.00',
+          employeeId: u.employee_id || u.employeeId || `EMP-${u.id}`,
+          original: u
+        }));
+        setEmployees(normalized);
+        if (!selectedEmployee && normalized.length) setSelectedEmployee(normalized[0]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch employees', err);
+    }
+  };
 
   const filteredEmployees = employees.filter(emp => 
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,6 +54,87 @@ const Promotion = () => {
   ).filter(emp =>
     designationFilter === 'All' || emp.currentRole.includes(designationFilter)
   );
+
+  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+  const fetchPromotions = async () => {
+    setLoadingPromotions(true);
+    try {
+      const res = await fetch(`${apiBase}/api/promotions`);
+      if (res.ok) {
+        const json = await res.json();
+        setPromotions(json.promotions || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch promotions', err);
+    } finally {
+      setLoadingPromotions(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchPromotions();
+    fetchEmployees();
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    setIsAdmin(u.role === 'Admin');
+  }, []);
+
+  const savePromotion = async () => {
+    if (!isAdmin) {
+      alert('Only admins can save promotions');
+      return;
+    }
+    if (!selectedEmployee) {
+      alert('Please select an employee');
+      return;
+    }
+    if (!newRole) {
+      alert('Please select a new role');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiBase}/api/promotions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+        body: JSON.stringify({ employee_id: selectedEmployee.id, new_role: newRole, new_salary: newSalary, reason })
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.message || 'Failed to save promotion');
+        return;
+      }
+
+      alert('Promotion saved');
+      setNewRole(''); setNewSalary(''); setReason('');
+      fetchPromotions();
+    } catch (err) {
+      console.error('Save promotion failed', err);
+      alert('Failed to save promotion');
+    }
+  };
+
+  const applyToPromotion = async (promotionId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) { alert('Please login to apply'); return; }
+      const cover = prompt('Enter a short cover note (optional)') || '';
+      const res = await fetch(`${apiBase}/api/promotions/${promotionId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cover_letter: cover })
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.message || 'Apply failed'); return; }
+      alert('Application submitted');
+    } catch (err) {
+      console.error('Apply failed', err);
+      alert('Apply failed');
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
@@ -99,65 +210,87 @@ const Promotion = () => {
                   </div>
                 </div>
 
-                {/* Employee Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="text-left py-4 px-6 font-semibold text-gray-700">Name</th>
-                        <th className="text-left py-4 px-6 font-semibold text-gray-700">CurrentRole</th>
-                        <th className="text-left py-4 px-6 font-semibold text-gray-700">Department</th>
-                        <th className="text-left py-4 px-6 font-semibold text-gray-700">Experience</th>
-                        <th className="text-left py-4 px-6 font-semibold text-gray-700">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredEmployees.map((emp) => (
-                        <tr 
-                          key={emp.id}
-                          onClick={() => setSelectedEmployee(emp)}
-                          className={`cursor-pointer transition-all duration-200 ${
-                            selectedEmployee?.id === emp.id 
-                              ? 'bg-blue-50 border-l-4 border-blue-500' 
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <td className="py-4 px-6">
-                            <div className="font-semibold text-gray-900">{emp.name}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="text-gray-700">{emp.currentRole}</span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              emp.dept === 'IT' ? 'bg-blue-100 text-blue-800' :
-                              emp.dept === 'Sales' ? 'bg-purple-100 text-purple-800' :
-                              emp.dept === 'HR' ? 'bg-green-100 text-green-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {emp.dept}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <Calendar size={16} className="text-gray-400" />
-                              {emp.tenure}
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-2">
-                              <span className="text-blue-600 font-semibold">1.00/10.15</span>
-                              {emp.name === 'Emilly' && (
-                                <span className="text-green-600 font-semibold">7.00/10.15</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                  {/* Promotions List */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Promotions</h4>
+                    <div className="space-y-2">
+                      {loadingPromotions ? (
+                        <div className="text-sm text-gray-500">Loading promotions…</div>
+                      ) : promotions.length === 0 ? (
+                        <div className="text-sm text-gray-500">No promotions yet</div>
+                      ) : promotions.map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                          <div>
+                            <div className="font-medium text-gray-900">{p.employee_name} → <span className="text-green-600">{p.new_role}</span></div>
+                            <div className="text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</div>
+                          </div>
+                          <div>
+                            <button onClick={() => applyToPromotion(p.id)} className="text-sm text-blue-600">Apply</button>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  {/* Employee Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="text-left py-4 px-6 font-semibold text-gray-700">Name</th>
+                          <th className="text-left py-4 px-6 font-semibold text-gray-700">CurrentRole</th>
+                          <th className="text-left py-4 px-6 font-semibold text-gray-700">Department</th>
+                          <th className="text-left py-4 px-6 font-semibold text-gray-700">Experience</th>
+                          <th className="text-left py-4 px-6 font-semibold text-gray-700">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredEmployees.map((emp) => (
+                          <tr 
+                            key={emp.id}
+                            onClick={() => setSelectedEmployee(emp)}
+                            className={`cursor-pointer transition-all duration-200 ${
+                              selectedEmployee?.id === emp.id 
+                                ? 'bg-blue-50 border-l-4 border-blue-500' 
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <td className="py-4 px-6">
+                              <div className="font-semibold text-gray-900">{emp.name}</div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className="text-gray-700">{emp.currentRole}</span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                emp.dept === 'IT' ? 'bg-blue-100 text-blue-800' :
+                                emp.dept === 'Sales' ? 'bg-purple-100 text-purple-800' :
+                                emp.dept === 'HR' ? 'bg-green-100 text-green-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {emp.dept}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-2 text-gray-700">
+                                <Calendar size={16} className="text-gray-400" />
+                                {emp.tenure}
+                              </div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-2">
+                                <span className="text-blue-600 font-semibold">1.00/10.15</span>
+                                {emp.name === 'Emilly' && (
+                                  <span className="text-green-600 font-semibold">7.00/10.15</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
               {/* Divider */}
               <div className="border-t border-dashed border-gray-300 mx-6"></div>
@@ -235,8 +368,8 @@ const Promotion = () => {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         New Role
                       </label>
-                      <select className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <option>Select Role</option>
+                      <select value={newRole} onChange={(e)=>setNewRole(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <option value="">Select Role</option>
                         <option>Senior Software Engineer</option>
                         <option>Senior Sales Executive</option>
                         <option>Senior HR Manager</option>
@@ -250,6 +383,8 @@ const Promotion = () => {
                       </label>
                       <input
                         type="text"
+                        value={newSalary}
+                        onChange={(e)=>setNewSalary(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         placeholder="--Enter salary--"
                       />
@@ -260,6 +395,8 @@ const Promotion = () => {
                         Promotion Reason
                       </label>
                       <textarea
+                        value={reason}
+                        onChange={(e)=>setReason(e.target.value)}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
                         rows="4"
                         placeholder="Enter Reason for Promotion......"
@@ -268,11 +405,11 @@ const Promotion = () => {
                     
                     {/* Action Buttons */}
                     <div className="flex gap-3 pt-4">
-                      <button className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                      <button onClick={savePromotion} className={`flex-1 ${isAdmin ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'} px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl`}>
                         <Save size={18} />
                         Save Promotion
                       </button>
-                      <button className="flex-1 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 px-6 py-3 rounded-xl hover:from-gray-300 hover:to-gray-400 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
+                      <button onClick={()=>{ setNewRole(''); setNewSalary(''); setReason(''); }} className="flex-1 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-800 px-6 py-3 rounded-xl hover:from-gray-300 hover:to-gray-400 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl">
                         <X size={18} />
                         Cancel
                       </button>

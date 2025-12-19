@@ -211,6 +211,14 @@ const initDb = async () => {
     } catch (err) {
       console.error('Error creating redemption tables', err);
     }
+
+    // create promotions tables
+    try {
+      const { createPromotionsTable } = await import('./models/promotion.model.js');
+      await createPromotionsTable();
+    } catch (err) {
+      console.error('Error creating promotions tables', err);
+    }
 };
 
 initDb();

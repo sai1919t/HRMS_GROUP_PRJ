@@ -45,6 +45,10 @@ app.use('/api/uploads', uploadsRoutes);
 import redeemRoutes from './routes/redeem.routes.js';
 app.use('/api/redeem', redeemRoutes);
 
+// Promotions routes
+import promotionRoutes from './routes/promotion.routes.js';
+app.use('/api/promotions', promotionRoutes);
+
 app.get("/", (req, res) => {
     res.send("Hello World");
 });
