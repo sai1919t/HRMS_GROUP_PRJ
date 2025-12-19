@@ -8,6 +8,27 @@ const RedemptionPage = () => {
   const [history, setHistory] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
 
+  // Derived quick-stats from redemption history
+  const totalRedeemed = React.useMemo(() => {
+    return history.reduce((sum, item) => sum + (item.cost || 0), 0);
+  }, [history]);
+
+  const savingsValue = React.useMemo(() => {
+    // Convert points to dollar-equivalent assuming 100 pts = $1
+    return totalRedeemed / 100;
+  }, [totalRedeemed]);
+
+  const avgMonthly = React.useMemo(() => {
+    if (!history || history.length === 0) return 0;
+    // compute number of months covered by history (inclusive)
+    const dates = history.map(h => new Date(h.created_at)).filter(d => !isNaN(d));
+    if (dates.length === 0) return 0;
+    const min = new Date(Math.min(...dates));
+    const max = new Date(Math.max(...dates));
+    const months = (max.getFullYear() - min.getFullYear()) * 12 + (max.getMonth() - min.getMonth()) + 1;
+    return Math.round(totalRedeemed / Math.max(1, months));
+  }, [history, totalRedeemed]);
+
   const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
   const fetchData = async () => {
@@ -254,7 +275,7 @@ const RedemptionPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-700 font-medium">Total Redeemed</p>
-              <h3 className="text-3xl font-bold text-gray-900">9,000 pts</h3>
+              <h3 className="text-3xl font-bold text-gray-900">{totalRedeemed.toLocaleString()} pts</h3>
             </div>
             <Gift className="text-purple-600" size={32} />
           </div>
@@ -263,7 +284,7 @@ const RedemptionPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-700 font-medium">Avg. Monthly</p>
-              <h3 className="text-3xl font-bold text-gray-900">3,000 pts</h3>
+              <h3 className="text-3xl font-bold text-gray-900">{avgMonthly.toLocaleString()} pts</h3>
             </div>
             <Calendar className="text-blue-600" size={32} />
           </div>
@@ -272,7 +293,7 @@ const RedemptionPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-700 font-medium">Savings Value</p>
-              <h3 className="text-3xl font-bold text-gray-900">$105</h3>
+              <h3 className="text-3xl font-bold text-gray-900">{savingsValue.toLocaleString(undefined, {style: 'currency', currency: 'USD', minimumFractionDigits: 2})}</h3>
             </div>
             <ShoppingCart className="text-green-600" size={32} />
           </div>

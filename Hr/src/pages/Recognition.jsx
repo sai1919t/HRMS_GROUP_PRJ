@@ -372,6 +372,13 @@ export default function RecognitionPage() {
     }
     fetchAppreciations();
     fetchUsers();
+
+    const onActivity = () => {
+      fetchAppreciations();
+      fetchUsers();
+    };
+    window.addEventListener('activity:updated', onActivity);
+    return () => window.removeEventListener('activity:updated', onActivity);
   }, []);
 
   const toggleLike = async (id) => {
@@ -596,7 +603,14 @@ export default function RecognitionPage() {
               <div className="flex items-center justify-between h-24 rounded-2xl px-5 bg-gray-100 text-gray-800 shadow">
                 <div>
                   <span className="text-sm text-gray-600">Current Rank</span>
-                  <span className="text-2xl font-semibold block">#3</span>
+                  <span className="text-2xl font-semibold block">{(() => {
+                    try {
+                      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+                      if (!localUser || !localUser.id || !users || users.length === 0) return '#-';
+                      const idx = users.findIndex(u => u.id === localUser.id);
+                      return idx >= 0 ? `#${idx + 1}` : '#-';
+                    } catch (e) { return '#-'; }
+                  })()}</span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-200 flex items-center justify-center">
                   <img src={trophy} alt="Trophy Icon" className="w-12 h-12" />

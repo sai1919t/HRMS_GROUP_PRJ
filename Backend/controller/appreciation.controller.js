@@ -25,6 +25,29 @@ export const createAppreciationController = async (req, res) => {
             });
         }
 
+        // If points are provided and > 0, perform transfer transactionally
+        let transferResult = null;
+        if (points && Number(points) > 0) {
+            // Check if sender is admin - admins can grant unlimited points (no deduction)
+            const { findUserById } = await import('../models/user.model.js');
+            const { addPoints, transferPoints } = await import('../models/points.model.js');
+            const sender = await findUserById(sender_id);
+
+            try {
+                if (sender && sender.role === 'Admin') {
+                    // Admin grants points without deduction
+                    const updatedRecipient = await addPoints(sender_id, recipient_id, Number(points), title || 'Points granted via admin appreciation');
+                    transferResult = { sender: sender, recipient: updatedRecipient };
+                } else {
+                    // Normal user: perform atomic transfer (will fail if insufficient)
+                    transferResult = await transferPoints(sender_id, recipient_id, Number(points), title || 'Points transfer via appreciation');
+                }
+            } catch (err) {
+                console.error('Points transfer failed', err);
+                return res.status(400).json({ success: false, message: err.message || 'Points transfer failed' });
+            }
+        }
+
         const appreciation = await createAppreciation(
             sender_id,
             recipient_id,
@@ -35,10 +58,14 @@ export const createAppreciationController = async (req, res) => {
             emoji || '🎉'
         );
 
+        // Emit activity update to client via event (frontend listens for activity:updated)
+        try { global?.emitActivity?.('activity:updated'); } catch (e) {}
+
         res.status(201).json({
             success: true,
             message: "Appreciation created successfully",
-            data: appreciation
+            data: appreciation,
+            transfer: transferResult
         });
     } catch (error) {
         console.error("Error creating appreciation:", error);

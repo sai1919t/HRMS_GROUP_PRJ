@@ -43,6 +43,8 @@ const FeedPage1 = ({ onNavigateBack }) => {
     // Fetch initial data
     const [userPoints, setUserPoints] = useState(0);
 
+    const [isAdmin, setIsAdmin] = useState(false);
+
     useEffect(() => {
         const fetchUsers = async () => {
             try {
@@ -67,7 +69,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 const data = await res.json();
                 setUserPoints(data.user?.points || 0);
                 // update local user copy
-                if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+                if (data.user) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    setIsAdmin(data.user.role === 'Admin');
+                }
             } catch (err) {
                 console.error('Failed to fetch user points', err);
             }
@@ -118,8 +123,18 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 }
             }
 
+            // Check balance (admins can send unlimited points)
+            if (parseInt(givePointsData.points, 10) <= 0) {
+                alert('Please enter a positive points amount');
+                return;
+            }
+            if (!isAdmin && parseInt(givePointsData.points, 10) > userPoints) {
+                alert('Insufficient points to send');
+                return;
+            }
+
             // Call backend API
-            await createAppreciation({
+            const resp = await createAppreciation({
                 recipient_id: parseInt(givePointsData.recipient_id),
                 title: givePointsData.title,
                 category: givePointsData.category,
@@ -127,6 +142,14 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 points: parseInt(givePointsData.points),
                 emoji: givePointsData.emoji
             });
+
+            // If transfer info present, update user points
+            if (resp && resp.transfer && resp.transfer.sender) {
+                const newPoints = resp.transfer.sender.points || 0;
+                setUserPoints(newPoints);
+                const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+                localStorage.setItem('user', JSON.stringify({ ...localUser, points: newPoints }));
+            }
 
             alert(`Successfully sent ${givePointsData.points} points!`);
             setShowGivePointsModal(false);
@@ -141,6 +164,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
             });
             // Refresh feed to show new card
             fetchFeed();
+            // Notify other pages to refresh points and leaderboard
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
+            // Notify other pages
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
         } catch (error) {
             console.error(error);
             alert('Failed to send points: ' + (error.message || JSON.stringify(error)));
@@ -326,9 +353,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </div>
                             <button
                                 onClick={submitPoints}
-                                className="w-full bg-[#266ECD] text-white py-3 rounded-xl font-bold hover:bg-opacity-90 transition shadow-lg"
+                                disabled={!givePointsData.recipient_id || !givePointsData.points || (!isAdmin && (parseInt(givePointsData.points || 0, 10) > userPoints))}
+                                className={`w-full py-3 rounded-xl font-bold transition shadow-lg ${(!givePointsData.recipient_id || !givePointsData.points || (!isAdmin && (parseInt(givePointsData.points || 0, 10) > userPoints))) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-[#266ECD] text-white hover:bg-opacity-90'}`}
                             >
-                                Send Points
+                                {(!isAdmin && parseInt(givePointsData.points || 0, 10) > userPoints) ? 'Insufficient points' : 'Send Points'}
                             </button>
                         </div>
                     </div>
