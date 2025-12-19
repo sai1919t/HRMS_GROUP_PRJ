@@ -31,6 +31,8 @@ export const createUserTable = async () => {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'Employee'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_city VARCHAR(255) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_country VARCHAR(255) DEFAULT ''`);
     console.log("✅ Users table created/updated successfully");
   } catch (error) {
     console.error("❌ Error creating users table:", error);
@@ -110,6 +112,8 @@ export const updateUser = async (id, updates) => {
     "date_of_joining",
     "status",
     "profile_picture",
+    "location_city",
+    "location_country",
   ];
   const setClauses = [];
   const values = [];

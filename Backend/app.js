@@ -17,6 +17,9 @@ app.use(express.urlencoded({ extended: true }));
 initDb();
 
 app.use("/api/users", userRoutes);
+// allow updating location via users route (updateUser supports it now)
+import usersRoutes from './routes/users.routes.js';
+app.use('/api/users', usersRoutes);
 app.use("/api/appreciations", appreciationRoutes);
 app.use("/api/employee-of-month", employeeOfMonthRoutes);
 
@@ -27,16 +30,24 @@ app.use("/api/interviews", interviewRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/meetings", meetingRoutes);
 
+// activities
+import activitiesRoutes from './routes/activities.routes.js';
+app.use('/api/activities', activitiesRoutes);
 
 // Serve static files
 app.use('/assets', express.static('assets'));
 
+// uploads routes (file management)
+import uploadsRoutes from './routes/uploads.routes.js';
+app.use('/api/uploads', uploadsRoutes);
 
 app.get("/", (req, res) => {
     res.send("Hello World");
 });
 
 // Lightweight contact endpoint — replace with real mailer/service as needed
+import nodemailer from 'nodemailer';
+
 app.post('/api/contact', async (req, res) => {
     try {
         const { name, email, message } = req.body;
@@ -44,7 +55,30 @@ app.post('/api/contact', async (req, res) => {
             return res.status(400).json({ error: 'Missing fields' });
         }
         console.log('Contact submission:', { name, email, message });
-        // TODO: hook up nodemailer or other service here
+
+        // If SMTP configured, send mail
+        if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT || '587', 10),
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                }
+            });
+
+            const to = process.env.CONTACT_TO || process.env.SMTP_USER;
+
+            await transporter.sendMail({
+                from: email,
+                to,
+                subject: `Contact form: ${name}`,
+                text: message,
+                html: `<p><strong>From:</strong> ${name} &lt;${email}&gt;</p><p>${message}</p>`
+            });
+        }
+
         return res.status(201).json({ success: true, message: 'Received' });
     } catch (err) {
         console.error('Contact error', err);
@@ -58,6 +92,28 @@ app.post('/api/feedback', async (req, res) => {
         const { rating, comment } = req.body;
         if (!rating) return res.status(400).json({ error: 'Rating required' });
         console.log('Feedback submission:', { rating, comment });
+
+        // If SMTP configured, send a notification email
+        if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+            const transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT || '587', 10),
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                }
+            });
+            const to = process.env.FEEDBACK_TO || process.env.SMTP_USER;
+            await transporter.sendMail({
+                from: process.env.SMTP_USER,
+                to,
+                subject: `New feedback: ${rating} stars`,
+                text: `${comment || ''}`,
+                html: `<p><strong>Rating:</strong> ${rating}</p><p>${comment || ''}</p>`
+            });
+        }
+
         // TODO: persist or forward to service
         return res.status(201).json({ success: true });
     } catch (err) {

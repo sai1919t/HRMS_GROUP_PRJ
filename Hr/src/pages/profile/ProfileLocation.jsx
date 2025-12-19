@@ -8,9 +8,31 @@ const ProfileLocation = () => {
   const [country, setCountry] = useState('India');
   const [saved, setSaved] = useState(false);
 
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!user || !user.id) {
+      setSaved(false);
+      alert('No user found locally. Please sign in.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${base}/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location_city: city, location_country: country })
+      });
+      if (!res.ok) throw new Error('Save failed');
+      const updated = await res.json();
+      // update local user
+      localStorage.setItem('user', JSON.stringify({ ...user, ...updated }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+      alert('Could not save location');
+    }
   };
 
   return (

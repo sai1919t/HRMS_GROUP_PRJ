@@ -358,43 +358,46 @@ export default function RecognitionPage() {
       avatarColor: "bg-yellow-100",
       textColor: "text-yellow-800",
     },
-    {
-      id: 2,
-      name: "Lisa Park",
-      points: 2987,
-      rank: 2,
-      isCurrentUser: false,
-      avatarColor: "bg-blue-100",
-      textColor: "text-blue-800",
-    },
-    {
-      id: 3,
-      name: "You",
-      points: 2847,
-      rank: 3,
-      isCurrentUser: true,
-      avatarColor: "bg-purple-200",
-      textColor: "text-purple-800",
-    },
-    {
-      id: 4,
-      name: "David Kim",
-      points: 2654,
-      rank: 4,
-      isCurrentUser: false,
-      avatarColor: "bg-gray-100",
-      textColor: "text-gray-800",
-    },
-    {
-      id: 5,
-      name: "Tom Rodriguez",
-      points: 2432,
-      rank: 5,
-      isCurrentUser: false,
-      avatarColor: "bg-green-100",
-      textColor: "text-green-800",
-    },
   ];
+
+  const [appreciations, setAppreciations] = useState([]);
+
+  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+  const fetchAppreciations = async () => {
+    try {
+      const headers = {};
+      const token = localStorage.getItem('token');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`${base}/api/appreciations`, { headers });
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      setAppreciations(data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch appreciations', err);
+    }
+  };
+
+  useEffect(() => { fetchAppreciations(); }, []);
+
+  const toggleLike = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/api/appreciations/${id}/like`, { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) {
+        console.error('like failed', res.status);
+        return;
+      }
+      // Refresh list
+      await fetchAppreciations();
+      // Notify other pages
+      try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch(e){}
+    } catch (err) {
+      console.error('Error toggling like', err);
+    }
+  };
+
+
 
   const recognitions = [
     {
@@ -627,39 +630,30 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-3">
-                {recognitions.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="border border-gray-200 rounded-lg p-3 shadow-sm"
-                  >
-                    <div className="flex items-center mb-2">
-                      <img
-                        src={rec.avatar}
-                        alt={rec.name}
-                        className="w-9 h-9 rounded-full mr-2.5 object-cover"
-                      />
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-800">
-                          {rec.name}
-                        </h4>
-                        <span className="text-xs text-gray-500">{rec.time}</span>
+                {appreciations.length === 0 ? (
+                  <p className="text-sm text-gray-500">No appreciations yet.</p>
+                ) : (
+                  appreciations.map((a) => (
+                    <div key={a.id} className="border border-gray-200 rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center mb-2">
+                        <div className="w-9 h-9 rounded-full mr-2.5 bg-gray-200 flex items-center justify-center">{a.sender_name?.split(' ').map(n=>n[0]).join('')}</div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-800">{a.sender_name}</h4>
+                          <span className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-2.5">{a.message}</p>
+
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleLike(a.id)} className={`px-3 py-1 rounded-md ${a.user_liked ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                          {a.user_liked ? 'Liked' : 'Like'} • {a.likes_count}
+                        </button>
+                        <span className="text-sm text-gray-500">{a.recipient_name}</span>
                       </div>
                     </div>
-
-                    <p className="text-sm text-gray-600 mb-2.5">
-                      {rec.message}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <span className="bg-purple-500 text-white text-xs px-2.5 py-0.5 rounded-full font-medium">
-                        {rec.points}
-                      </span>
-                      <span className="text-purple-600 text-sm font-medium">
-                        {rec.badge}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>

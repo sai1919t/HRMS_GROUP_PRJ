@@ -9,9 +9,21 @@ const initialDeleted = [
 
 const ProfileDeleted = () => {
   const navigate = useNavigate();
-  const [items, setItems] = useState(initialDeleted);
+  const [items, setItems] = useState([]);
+  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-  const restore = (id) => setItems(prev => prev.filter(i => i.id !== id));
+  const fetchDeleted = async () => {
+    const res = await fetch(`${base}/api/uploads/deleted`);
+    const data = await res.json();
+    setItems(data);
+  };
+
+  React.useEffect(() => { fetchDeleted(); }, []);
+
+  const restore = async (filename) => {
+    const res = await fetch(`${base}/api/uploads/restore/${encodeURIComponent(filename)}`, { method: 'POST' });
+    if (res.ok) await fetchDeleted();
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -25,10 +37,10 @@ const ProfileDeleted = () => {
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
         {items.length === 0 ? <p className="text-gray-600">No recently deleted items.</p> : (
           items.map(it => (
-            <div key={it.id} className="flex items-center justify-between py-3 border-b last:border-b-0">
-              <div className="text-gray-800">{it.name}</div>
+            <div key={it.filename} className="flex items-center justify-between py-3 border-b last:border-b-0">
+              <div className="text-gray-800">{it.filename}</div>
               <div>
-                <button onClick={() => restore(it.id)} className="px-3 py-1 bg-blue-600 text-white rounded-md">Restore</button>
+                <button onClick={() => restore(it.filename)} className="px-3 py-1 bg-blue-600 text-white rounded-md">Restore</button>
               </div>
             </div>
           ))

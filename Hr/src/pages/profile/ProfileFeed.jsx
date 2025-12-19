@@ -2,14 +2,26 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const mockFeed = [
-  { id: 1, text: 'Shared a new appreciation for the promo team.' },
-  { id: 2, text: 'Completed onboarding for 3 new hires.' },
-  { id: 3, text: 'Published the October HR newsletter.' },
-];
-
 const ProfileFeed = () => {
   const navigate = useNavigate();
+  const [activities, setActivities] = React.useState([]);
+  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+  const fetchActivities = async () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!user || !user.id) return;
+    try {
+      const res = await fetch(`${base}/api/activities/likes/${user.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setActivities(data);
+    } catch (err) {
+      console.error('Failed to fetch activities', err);
+    }
+  };
+
+  React.useEffect(() => { fetchActivities(); const handler = () => fetchActivities(); window.addEventListener('activity:updated', handler); return () => window.removeEventListener('activity:updated', handler); }, []);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-6 mt-5">
@@ -20,11 +32,16 @@ const ProfileFeed = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        {mockFeed.map(item => (
-          <div key={item.id} className="border-b last:border-b-0 py-3">
-            <p className="text-gray-800">{item.text}</p>
-          </div>
-        ))}
+        {activities.length === 0 ? (
+          <p className="text-gray-600">No recent activity.</p>
+        ) : (
+          activities.map(item => (
+            <div key={item.id} className="border-b last:border-b-0 py-3">
+              <p className="text-gray-800">You liked "{item.title}" by {item.recipient_name}</p>
+              <div className="text-sm text-gray-500">{new Date(item.created_at).toLocaleString()}</div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
