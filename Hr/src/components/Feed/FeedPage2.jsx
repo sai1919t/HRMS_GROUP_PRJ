@@ -260,7 +260,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                             </div>
                         )}
 
-                        {!loading && appreciations.filter(a => !a.points || a.points === 0).map((appreciation) => (
+                        {!loading && appreciations.map((appreciation) => (
                             <div key={appreciation.id} className="bg-white rounded-2xl shadow-md overflow-hidden">
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
@@ -326,6 +326,11 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                             </svg>
                                             <span className="font-bold text-base">{appreciation.likes_count || 0}</span>
                                         </button>
+                                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                                            {appreciation.points > 0 && (
+                                                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">+{appreciation.points} pts</span>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => toggleCommentsView(appreciation.id)}
                                             className="flex items-center gap-2 text-gray-500 hover:text-gray-700"

@@ -9,20 +9,6 @@ export default function RecognitionPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const res = await fetch("http://localhost:3000/api/users", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
-      });
-
-      const data = await res.json();
-      setUsers(data.users);
-    };
-
-    fetchUsers();
-  }, []);
 
 
   const [formData, setFormData] = useState({
@@ -348,19 +334,8 @@ export default function RecognitionPage() {
     </>
   );
 
-  const leaderboard = [
-    {
-      id: 1,
-      name: "Alex Chen",
-      points: 3245,
-      rank: 1,
-      isCurrentUser: false,
-      avatarColor: "bg-yellow-100",
-      textColor: "text-yellow-800",
-    },
-  ];
-
   const [appreciations, setAppreciations] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
@@ -378,7 +353,26 @@ export default function RecognitionPage() {
     }
   };
 
-  useEffect(() => { fetchAppreciations(); }, []);
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/api/users`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      const data = await res.json();
+      setUsers(data.users || []);
+    } catch (err) {
+      console.error('Failed to fetch users', err);
+    }
+  };
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      setIsAdmin(u.role === 'Admin');
+    }
+    fetchAppreciations();
+    fetchUsers();
+  }, []);
 
   const toggleLike = async (id) => {
     try {
@@ -395,6 +389,21 @@ export default function RecognitionPage() {
     } catch (err) {
       console.error('Error toggling like', err);
     }
+  };
+
+  const grantPoints = async (userId) => {
+    const amt = parseInt(prompt('Enter points to grant (positive integer)'), 10);
+    if (!amt || isNaN(amt)) return;
+    const reason = prompt('Optional reason for points') || '';
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/api/admin/users/${userId}/points`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify({ amount: amt, reason }) });
+      if (!res.ok) { alert('Failed to grant points'); return; }
+      await fetchUsers();
+      await fetchAppreciations();
+      window.dispatchEvent(new CustomEvent('activity:updated'));
+      alert('Points granted');
+    } catch (err) { console.error('Grant points failed', err); alert('Failed to grant points'); }
   };
 
 
@@ -496,8 +505,8 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-2">
-                {leaderboard.map((user) => {
-                  const rowClasses = user.isCurrentUser
+                {users.slice(0,5).map((user, idx) => {
+                  const rowClasses = user.id === JSON.parse(localStorage.getItem('user') || '{}').id
                     ? "border border-purple-500 bg-purple-50"
                     : "border border-transparent bg-gray-50 hover:bg-gray-100";
 
@@ -508,13 +517,13 @@ export default function RecognitionPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-7 w-7 flex items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-800">
-                          {user.rank}
+                          {idx + 1}
                         </div>
 
                         <div
-                          className={`h-9 w-9 flex items-center justify-center rounded-full text-xs font-semibold ${user.avatarColor} ${user.textColor}`}
+                          className={`h-9 w-9 flex items-center justify-center rounded-full text-xs font-semibold bg-gray-100 text-gray-800`}
                         >
-                          {user.name
+                          {user.fullname
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
@@ -522,29 +531,32 @@ export default function RecognitionPage() {
 
                         <div>
                           <p
-                            className={`text-xs font-semibold ${user.isCurrentUser
+                            className={`text-xs font-semibold ${user.id === JSON.parse(localStorage.getItem('user') || '{}').id
                               ? "text-purple-700"
                               : "text-gray-900"
                               }`}
                           >
-                            {user.name}
+                            {user.fullname}
                           </p>
                           <p className="text-[11px] text-gray-500">
-                            {user.points.toLocaleString()} points
+                            {user.points?.toLocaleString() || 0} points
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {user.rank === 1 && <span className="text-lg">👑</span>}
-                        {user.isCurrentUser ? (
+                        {idx === 0 && <span className="text-lg">👑</span>}
+                        {user.id === JSON.parse(localStorage.getItem('user') || '{}').id ? (
                           <span className="rounded-full bg-purple-600 px-2 py-1 text-[10px] font-semibold text-white">
                             You
                           </span>
                         ) : (
-                          <span className="text-[11px] text-gray-500 font-medium">
-                            #{user.rank}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-gray-500 font-medium">#{idx + 1}</span>
+                            {isAdmin && (
+                              <button onClick={() => grantPoints(user.id)} className="ml-2 text-sm bg-blue-600 text-white px-2 py-1 rounded-md">Grant</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

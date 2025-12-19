@@ -11,6 +11,7 @@ export const createAppreciationsTable = async () => {
       category VARCHAR(100) NOT NULL,
       message TEXT NOT NULL,
       emoji VARCHAR(10) DEFAULT '🎉',
+      points INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;

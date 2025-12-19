@@ -45,6 +45,10 @@ app.get("/", (req, res) => {
     res.send("Hello World");
 });
 
+// admin routes (grant points)
+import adminRoutes from './routes/admin.routes.js';
+app.use('/api/admin', adminRoutes);
+
 // Lightweight contact endpoint — replace with real mailer/service as needed
 import nodemailer from 'nodemailer';
 

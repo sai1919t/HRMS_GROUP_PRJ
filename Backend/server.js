@@ -196,6 +196,13 @@ const initDb = async () => {
     await createOffersTable();
     await createMessagesTable();
     await createMeetingTable(); // Create meetings table
+    // create points table
+    try {
+      const { createPointsTable } = await import('./models/points.model.js');
+      await createPointsTable();
+    } catch (err) {
+      console.error('Error creating points table', err);
+    }
 };
 
 initDb();

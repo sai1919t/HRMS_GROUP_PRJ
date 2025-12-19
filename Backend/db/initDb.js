@@ -50,6 +50,12 @@ export const initDb = async () => {
     `);
 
     console.log("✅ ATS tables created / already exist");
+    // Create points transactions table for admin allocations
+    try {
+      const { rows } = await pool.query(`SELECT to_regclass('public.points_transactions') as exists`);
+      // we'll create via model if needed
+    } catch (e) {}
+
   } catch (error) {
     console.error("❌ DB Init Error:", error.message);
   }
