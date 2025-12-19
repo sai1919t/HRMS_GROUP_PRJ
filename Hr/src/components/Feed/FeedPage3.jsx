@@ -192,6 +192,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                                             <p className="text-sm text-gray-400 font-medium uppercase tracking-wider">{employeeData.month}</p>
                                         </div>
                                     </div>
+                                    {isAdmin && (
                                     <button
                                         onClick={handleDeleteEmployeeOfMonth}
                                         className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
@@ -199,6 +200,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                                     >
                                         <Trash2 size={18} />
                                     </button>
+                                    )}  
                                 </div>
 
                                 {/* Featured Employee Content */}
@@ -238,12 +240,14 @@ const FeedPage3 = ({ onNavigateBack }) => {
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                                         {employeeData.team.map((member) => (
                                             <div key={member.id} className="relative group bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-orange-200 transition-colors">
+                                                {isAdmin && (
                                                 <button
                                                     onClick={() => handleDeleteTeamMember(member.id)}
                                                     className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
                                                     <X size={14} />
                                                 </button>
+                                                )} 
 
                                                 <div className="flex items-center gap-4">
                                                     <img
@@ -269,12 +273,16 @@ const FeedPage3 = ({ onNavigateBack }) => {
                             </div>
                             <h3 className="text-xl font-bold text-[#020839] mb-2">No Recognition Yet</h3>
                             <p className="text-gray-500 mb-8 max-w-sm mx-auto">Start celebrating your team's success by adding the first Employee of the Month.</p>
-                            <button
-                                onClick={handleOpenModal}
-                                className="bg-[#020839] text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-opacity-90 transition-all shadow-sm"
-                            >
-                                Recognize Someone
-                            </button>
+                            {isAdmin ? (
+                                <button
+                                    onClick={handleOpenModal}
+                                    className="bg-[#020839] text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-opacity-90 transition-all shadow-sm"
+                                >
+                                    Recognize Someone
+                                </button>
+                            ) : (
+                                <p className="text-sm text-gray-500">Only admins can create Employee of the Month entries. Contact your administrator if you need to recognize someone.</p>
+                            )}
                         </div>
                     )}
                 </div>
