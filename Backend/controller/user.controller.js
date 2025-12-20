@@ -37,9 +37,11 @@ export const signup = async (req, res) => {
         console.log(`🕒 Time: ${new Date().toLocaleString()}`);
         console.log("--------------------------------------------------");
 
-        const token = jwt.sign({ id: newUser.id, role: newUser.role }, process.env.JWT_SECRET || "secret", {
-            expiresIn: "1h",
-        });
+        const token = jwt.sign(
+            { id: newUser.id, role: newUser.role },
+            process.env.JWT_SECRET || "secret",
+            { expiresIn: "1h" }
+        );
 
         res.status(201).json({
             message: "User created successfully",
@@ -87,9 +89,11 @@ export const login = async (req, res) => {
             return res.status(400).json({ message: "Invalid credentials" });
         }
 
-        const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || "secret", {
-            expiresIn: "1h",
-        });
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET || "secret",
+            { expiresIn: "1h" }
+        );
 
         console.log("--------------------------------------------------");
         console.log("🔓 USER LOGIN");

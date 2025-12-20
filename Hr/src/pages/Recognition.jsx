@@ -8,6 +8,74 @@ export default function RecognitionPage() {
   const [selectedRecipientId, setSelectedRecipientId] = useState(null);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [recognitions, setRecognitions] = useState([]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch Users
+      const userRes = await fetch("http://localhost:3000/api/users", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const userData = await userRes.json();
+      setUsers(userData.users || []);
+
+      // Fetch Leaderboard
+      const leaderboardRes = await fetch("http://localhost:3000/api/appreciations/leaderboard", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const leaderboardData = await leaderboardRes.json();
+      const loggedInUser = JSON.parse(localStorage.getItem("user"));
+
+      if (leaderboardData.success) {
+        const mappedLeaderboard = leaderboardData.data.map(user => {
+          const colors = ["bg-yellow-100 text-yellow-800", "bg-blue-100 text-blue-800", "bg-purple-200 text-purple-800", "bg-gray-100 text-gray-800", "bg-green-100 text-green-800"];
+          const colorClass = colors[user.id % colors.length];
+          const [avatarColor, textColor] = colorClass.split(" text-");
+
+          return {
+            ...user,
+            isCurrentUser: loggedInUser && user.id === loggedInUser.id,
+            avatarColor: avatarColor.trim(),
+            textColor: `text-${textColor.trim()}`
+          };
+        });
+        setLeaderboard(mappedLeaderboard);
+      }
+
+      // Fetch Recent Recognitions
+      const appRes = await fetch("http://localhost:3000/api/appreciations?source=recognition", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const appData = await appRes.json();
+      if (appData.success) {
+        const mappedRecognitions = appData.data.map(item => ({
+          id: item.id,
+          name: item.recipient_name, // Display Recipient Name
+          time: new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          message: item.message,
+          points: `+${item.points} points`,
+          badge: item.category,
+          avatar: item.recipient_profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.recipient_name)}&background=random`,
+
+          // Extra fields for recent recognition card
+          created_at: item.created_at,
+          sender_name: item.sender_name,
+          user_liked: item.user_liked,
+          likes_count: item.likes_count,
+          recipient_name: item.recipient_name,
+        }));
+        setRecognitions(mappedRecognitions);
+      }
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
 
 
@@ -50,7 +118,8 @@ export default function RecognitionPage() {
         category: formData.appreciationType,
         message: `${formData.achievement}${formData.contextMessage ? "\n\n" + formData.contextMessage : ""}`,
         emoji: "🎉",
-        points: 0
+        points: 0, // You might want to assign points based on type later
+        source: "recognition"
       };
 
       console.log("Submitting payload:", payload);
@@ -76,6 +145,21 @@ export default function RecognitionPage() {
       }
 
       alert("Appreciation sent successfully");
+
+      // Refresh the data to show the new appreciation and updated leaderboard
+      fetchData();
+
+      // Reset relevant form fields
+      setFormData(prev => ({
+        ...prev,
+        recipientName: "",
+        employeeId: "",
+        appreciationType: "",
+        achievement: "",
+        contextMessage: ""
+      }));
+      setSelectedRecipientId(null);
+
     } catch (err) {
       console.error("FULL ERROR:", err);
       alert(err.message || "Something went wrong");
@@ -334,52 +418,15 @@ export default function RecognitionPage() {
     </>
   );
 
-  const [appreciations, setAppreciations] = useState([]);
+  // const [appreciations, setAppreciations] = useState([]); // Removed duplicate state
+  // const [isAdmin, setIsAdmin] = useState(false); // Declared above if needed? Wait, let's check.
+  // Actually isAdmin is used later, let's just keep isAdmin if it wasn't duplicated. 
+  // I need to check where isAdmin is first declared. It is NOT declared at top.
+  // So I should keep isAdmin but remove appreciations.
+
   const [isAdmin, setIsAdmin] = useState(false);
 
   const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-
-  const fetchAppreciations = async () => {
-    try {
-      const headers = {};
-      const token = localStorage.getItem('token');
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`${base}/api/appreciations`, { headers });
-      if (!res.ok) throw new Error('Failed to load');
-      const data = await res.json();
-      setAppreciations(data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch appreciations', err);
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${base}/api/users`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
-      const data = await res.json();
-      setUsers(data.users || []);
-    } catch (err) {
-      console.error('Failed to fetch users', err);
-    }
-  };
-
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const u = JSON.parse(userStr);
-      setIsAdmin(u.role === 'Admin');
-    }
-    fetchAppreciations();
-    fetchUsers();
-
-    const onActivity = () => {
-      fetchAppreciations();
-      fetchUsers();
-    };
-    window.addEventListener('activity:updated', onActivity);
-    return () => window.removeEventListener('activity:updated', onActivity);
-  }, []);
 
   const toggleLike = async (id) => {
     try {
@@ -390,9 +437,9 @@ export default function RecognitionPage() {
         return;
       }
       // Refresh list
-      await fetchAppreciations();
+      fetchData();
       // Notify other pages
-      try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch(e){}
+      try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
     } catch (err) {
       console.error('Error toggling like', err);
     }
@@ -406,37 +453,13 @@ export default function RecognitionPage() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${base}/api/admin/users/${userId}/points`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify({ amount: amt, reason }) });
       if (!res.ok) { alert('Failed to grant points'); return; }
-      await fetchUsers();
-      await fetchAppreciations();
+      fetchData();
       window.dispatchEvent(new CustomEvent('activity:updated'));
       alert('Points granted');
     } catch (err) { console.error('Grant points failed', err); alert('Failed to grant points'); }
   };
 
 
-
-  const recognitions = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      time: "2 hours ago",
-      message:
-        "Congratulations on completing the Q3 project ahead of schedule! Your dedication is inspiring.",
-      points: "+50 points",
-      badge: "Top Performer Badge",
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-    },
-    {
-      id: 2,
-      name: "Mike Davis",
-      time: "1 day ago",
-      message:
-        "Thank you for mentoring the new team members. Your guidance has been invaluable!",
-      points: "+30 points",
-      badge: "Team Player Badge",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    },
-  ];
 
   return (
     <div>
@@ -512,7 +535,7 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-2">
-                {users.slice(0,5).map((user, idx) => {
+                {users.slice(0, 5).map((user, idx) => {
                   const rowClasses = user.id === JSON.parse(localStorage.getItem('user') || '{}').id
                     ? "border border-purple-500 bg-purple-50"
                     : "border border-transparent bg-gray-50 hover:bg-gray-100";
@@ -656,13 +679,13 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-3">
-                {appreciations.length === 0 ? (
+                {recognitions.length === 0 ? (
                   <p className="text-sm text-gray-500">No appreciations yet.</p>
                 ) : (
-                  appreciations.map((a) => (
+                  recognitions.map((a) => (
                     <div key={a.id} className="border border-gray-200 rounded-lg p-3 shadow-sm">
                       <div className="flex items-center mb-2">
-                        <div className="w-9 h-9 rounded-full mr-2.5 bg-gray-200 flex items-center justify-center">{a.sender_name?.split(' ').map(n=>n[0]).join('')}</div>
+                        <div className="w-9 h-9 rounded-full mr-2.5 bg-gray-200 flex items-center justify-center">{a.sender_name?.split(' ').map(n => n[0]).join('')}</div>
                         <div>
                           <h4 className="text-sm font-semibold text-gray-800">{a.sender_name}</h4>
                           <span className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()}</span>

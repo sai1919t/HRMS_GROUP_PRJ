@@ -18,7 +18,10 @@ const backgroundColorPlugin = {
 
 Chart.register(ArcElement, Tooltip, backgroundColorPlugin);
 
-export default function EmpComp({ total = 856, malePercent = 65, femalePercent = 35 }) {
+export default function EmpComp({ genderStats }) {
+  const malePercent = genderStats?.malePercent || 0;
+  const femalePercent = genderStats?.femalePercent || 0;
+  const total = (genderStats?.male || 0) + (genderStats?.female || 0);
   const chartRef = useRef(null);
 
   const data = useMemo(

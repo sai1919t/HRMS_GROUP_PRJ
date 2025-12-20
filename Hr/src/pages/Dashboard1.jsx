@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import EmployeesStatistics from "../components/Dashboard1/EmployeesStatistics.jsx";
 import StatsCards from "../components/Dashboard1/StatsCard.jsx";
 import EmpComposition from "../components/Dashboard1/Emp_Composition.jsx";
@@ -8,6 +9,26 @@ function Dashboard1() {
   const [count, setCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState("Dashboard");
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+      const res = await axios.get(`${baseUrl}/api/dashboard/overview`, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
+      });
+      if (res.data.success) {
+        setStats(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard overview", err);
+    }
+  };
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
@@ -21,7 +42,7 @@ function Dashboard1() {
               <p className="text-gray-500 mt-1 text-sm">Welcome back, here's what's happening today.</p>
             </div>
 
-            <StatsCards />
+            <StatsCards stats={stats} />
 
             <div className="mt-8">
               <EmployeesStatistics />
@@ -32,7 +53,7 @@ function Dashboard1() {
                 <MeetingsUI />
               </div>
               <div className="w-full h-full">
-                <EmpComposition />
+                <EmpComposition genderStats={stats?.genderComposition} />
               </div>
             </div>
           </div>

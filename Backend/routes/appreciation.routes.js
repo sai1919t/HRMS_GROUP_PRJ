@@ -8,12 +8,14 @@ import {
     toggleLikeController,
     addCommentController,
     deleteCommentController,
-    getCommentsController
+    getCommentsController,
+    getLeaderboardController
 } from "../controller/appreciation.controller.js";
 
 const router = express.Router();
 
 // Appreciation routes
+router.get("/leaderboard", getLeaderboardController);
 router.post("/", authMiddleware, createAppreciationController);
 router.get("/", getAllAppreciationsController);
 router.get("/:id", getAppreciationByIdController);

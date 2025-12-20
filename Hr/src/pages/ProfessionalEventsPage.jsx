@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getAllEvents, createEvent as createEventAPI, registerForEvent, deleteEvent as deleteEventAPI } from '../services/event.service';
 
 const ProfessionalEventsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -7,6 +8,8 @@ const ProfessionalEventsPage = () => {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [joinedEvents, setJoinedEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [joinForm, setJoinForm] = useState({
     name: '',
     email: '',
@@ -18,105 +21,78 @@ const ProfessionalEventsPage = () => {
     title: '',
     location: '',
     description: '',
-    date: '',
-    type: 'Conference'
+    event_date: '',
+    start_time: '09:00',
+    end_time: '17:00',
+    event_type: 'Conference',
+    max_attendees: 100
   });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   React.useEffect(() => {
     const userStr = localStorage.getItem("user");
     if (userStr) {
       const user = JSON.parse(userStr);
       setIsAdmin(user.role === 'Admin');
+      setCurrentUser(user);
     }
   }, []);
 
-  // Professional HRMS Events Data with high-quality images
-  const [professionalEvents, setProfessionalEvents] = useState([
-    {
-      id: 1,
-      title: 'HR Leadership Summit 2024',
-      location: 'San Francisco Conference Center',
-      description: 'Join industry leaders for insights on modern HR practices and talent management.',
-      date: 'March 15-16, 2024',
-      category: 'upcoming',
-      type: 'Conference',
-      attendees: '250+',
-      image: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=500&h=300&fit=crop&auto=format'
-    },
-    {
-      id: 2,
-      title: 'Talent Acquisition Workshop',
-      location: 'New York Business Hub',
-      description: 'Master talent sourcing and recruitment marketing in the digital age.',
-      date: 'April 5, 2024',
-      category: 'upcoming',
-      type: 'Workshop',
-      attendees: '100+',
-      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=300&fit=crop&auto=format'
-    },
-    {
-      id: 3,
-      title: 'Employee Wellness Symposium',
-      location: 'Chicago Lakeside Center',
-      description: 'Explore innovative approaches to employee wellbeing and engagement.',
-      date: 'February 20, 2024',
-      category: 'past',
-      type: 'Symposium',
-      attendees: '180+',
-      image: 'https://images.unsplash.com/photo-1551836026-d5c88ac5c73d?w=500&h=300&fit=crop&auto=format'
-    },
-    {
-      id: 4,
-      title: 'HR Tech Innovation Expo',
-      location: 'Austin Convention Center',
-      description: 'Discover cutting-edge HR tech solutions and AI tools.',
-      date: 'January 12, 2024',
-      category: 'past',
-      type: 'Expo',
-      attendees: '300+',
-      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=500&h=300&fit=crop&auto=format'
-    },
-    {
-      id: 5,
-      title: 'Diversity & Inclusion Forum',
-      location: 'Seattle Tech Park',
-      description: 'Building inclusive cultures for organizational success.',
-      date: 'May 8, 2024',
-      category: 'upcoming',
-      type: 'Forum',
-      attendees: '150+',
-      image: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=500&h=300&fit=crop&auto=format'
-    },
-    {
-      id: 6,
-      title: 'Future of Work Conference',
-      location: 'Boston Innovation Center',
-      description: 'Exploring remote work and AI integration in workplaces.',
-      date: 'June 22, 2024',
-      category: 'upcoming',
-      type: 'Conference',
-      attendees: '200+',
-      image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&h=300&fit=crop&auto=format'
+  // Fetch events from backend
+  const [professionalEvents, setProfessionalEvents] = useState([]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const events = await getAllEvents();
+      setProfessionalEvents(events);
+    } catch (err) {
+      console.error("Error fetching events:", err);
+      setError("Failed to load events. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  // Determine event category based on date
+  const getEventCategory = (eventDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDateObj = new Date(eventDate);
+    eventDateObj.setHours(0, 0, 0, 0);
+
+    return eventDateObj >= today ? 'upcoming' : 'past';
+  };
 
   const filteredEvents = activeTab === 'all'
     ? professionalEvents
-    : professionalEvents.filter(event => event.category === activeTab);
+    : professionalEvents.filter(event => getEventCategory(event.event_date) === activeTab);
 
   const handleJoinClick = (event) => {
     setSelectedEvent(event);
     setShowJoinModal(true);
   };
 
-  const handleJoinSubmit = (e) => {
+  const handleJoinSubmit = async (e) => {
     e.preventDefault();
     if (selectedEvent) {
-      setJoinedEvents([...joinedEvents, selectedEvent.id]);
-      alert(`Successfully registered for: ${selectedEvent.title}\n\nWe've sent confirmation to ${joinForm.email}`);
-      setShowJoinModal(false);
-      setJoinForm({ name: '', email: '', company: '', position: '' });
+      try {
+        await registerForEvent(selectedEvent.id, "Confirmed");
+        setJoinedEvents([...joinedEvents, selectedEvent.id]);
+        alert(`Successfully registered for: ${selectedEvent.title}\n\nWe've sent confirmation to ${joinForm.email}`);
+        setShowJoinModal(false);
+        setJoinForm({ name: '', email: '', company: '', position: '' });
+        // Refresh events to get updated attendee count
+        fetchEvents();
+      } catch (error) {
+        alert(`Failed to register: ${error.message}`);
+      }
     }
   };
 
@@ -124,26 +100,40 @@ const ProfessionalEventsPage = () => {
     setShowCreateEventModal(true);
   };
 
-  const handleSubmitEvent = (e) => {
+  const handleSubmitEvent = async (e) => {
     e.preventDefault();
-    const event = {
-      id: professionalEvents.length + 1,
-      ...newEvent,
-      category: 'upcoming',
-      attendees: '50+',
-      image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=500&h=300&fit=crop&auto=format'
-    };
+    try {
+      const eventData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        event_date: newEvent.event_date,
+        start_time: newEvent.start_time,
+        end_time: newEvent.end_time,
+        location: newEvent.location,
+        event_type: newEvent.event_type,
+        status: 'Upcoming',
+        max_attendees: newEvent.max_attendees
+      };
 
-    setProfessionalEvents([event, ...professionalEvents]);
-    setNewEvent({
-      title: '',
-      location: '',
-      description: '',
-      date: '',
-      type: 'Conference'
-    });
-    setShowCreateEventModal(false);
-    alert('Event created successfully!');
+      await createEventAPI(eventData);
+
+      setNewEvent({
+        title: '',
+        location: '',
+        description: '',
+        event_date: '',
+        start_time: '09:00',
+        end_time: '17:00',
+        event_type: 'Conference',
+        max_attendees: 100
+      });
+      setShowCreateEventModal(false);
+      alert('Event created successfully!');
+      // Refresh events list
+      fetchEvents();
+    } catch (error) {
+      alert(`Failed to create event: ${error.message}`);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -152,6 +142,18 @@ const ProfessionalEventsPage = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      try {
+        await deleteEventAPI(eventId);
+        alert('Event deleted successfully');
+        fetchEvents();
+      } catch (error) {
+        alert(`Failed to delete event: ${error.message}`);
+      }
+    }
   };
 
   const handleJoinFormChange = (e) => {
@@ -309,22 +311,45 @@ const ProfessionalEventsPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Event Date</label>
                   <input
-                    type="text"
-                    name="date"
-                    value={newEvent.date}
+                    type="date"
+                    name="event_date"
+                    value={newEvent.event_date}
                     onChange={handleInputChange}
                     required
-                    placeholder="e.g., March 15, 2024"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      name="start_time"
+                      value={newEvent.start_time}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <input
+                      type="time"
+                      name="end_time"
+                      value={newEvent.end_time}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
                   <select
-                    name="type"
-                    value={newEvent.type}
+                    name="event_type"
+                    value={newEvent.event_type}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   >
@@ -333,7 +358,21 @@ const ProfessionalEventsPage = () => {
                     <option value="Symposium">Symposium</option>
                     <option value="Expo">Expo</option>
                     <option value="Forum">Forum</option>
+                    <option value="Team Building">Team Building</option>
+                    <option value="Training">Training</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Attendees</label>
+                  <input
+                    type="number"
+                    name="max_attendees"
+                    value={newEvent.max_attendees}
+                    onChange={handleInputChange}
+                    min="1"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
                 </div>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
@@ -407,91 +446,130 @@ const ProfessionalEventsPage = () => {
                 </div>
 
                 {/* Events Grid */}
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredEvents.map((event) => (
-                    <div key={event.id} className="bg-white overflow-hidden border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-300 group">
-                      <div className="relative h-40 bg-gray-200 overflow-hidden">
-                        <img
-                          src={event.image}
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-3 left-3">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {event.type}
-                          </span>
-                        </div>
-                        <div className="absolute top-3 right-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-black bg-opacity-70 text-white">
-                            {event.attendees}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex items-center space-x-1 mb-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-sm text-gray-500">{event.date}</span>
-                        </div>
-
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">{event.title}</h3>
-
-                        <div className="flex items-center text-sm text-gray-500 mb-3">
-                          <svg className="shrink-0 mr-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          </svg>
-                          <span className="line-clamp-1">{event.location}</span>
-                        </div>
-
-                        <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-2">{event.description}</p>
-
-                        <button
-                          onClick={() => isEventJoined(event.id) ? null : handleJoinClick(event)}
-                          disabled={isEventJoined(event.id)}
-                          className={`w-full inline-flex items-center justify-center px-4 py-2.5 border text-sm font-medium rounded-lg transition-all duration-200 ${isEventJoined(event.id)
-                            ? 'bg-green-50 text-green-700 border-green-200 cursor-not-allowed'
-                            : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm'
-                            }`}
-                        >
-                          {isEventJoined(event.id) ? (
-                            <>
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Registered
-                            </>
-                          ) : (
-                            'Register Now'
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Empty State */}
-                {filteredEvents.length === 0 && (
+                {loading ? (
                   <div className="text-center py-12">
-                    <div className="bg-blue-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                      <svg className="h-8 w-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading events...</p>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-12">
+                    <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                      <svg className="h-8 w-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
-                    <p className="text-sm text-gray-500 mb-4">There are no {activeTab} events at the moment.</p>
-                    {isAdmin && (
-                      <button
-                        onClick={handleCreateEvent}
-                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Create First Event
-                      </button>
-                    )}
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Events</h3>
+                    <p className="text-sm text-gray-500 mb-4">{error}</p>
+                    <button
+                      onClick={fetchEvents}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredEvents.map((event) => (
+                      <div key={event.id} className="bg-white overflow-hidden border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-300 group">
+                        <div className="relative h-40 bg-gradient-to-br from-blue-500 to-purple-600 overflow-hidden">
+                          <div className="absolute inset-0 bg-black opacity-20"></div>
+                          <div className="absolute top-3 left-3">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white bg-opacity-90 text-blue-800">
+                              {event.event_type || 'Event'}
+                            </span>
+                          </div>
+                          <div className="absolute top-3 right-3">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-black bg-opacity-70 text-white">
+                              {event.attendee_count || 0} attending
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4">
+                          <div className="flex items-center space-x-1 mb-2">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm text-gray-500">
+                              {new Date(event.event_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">{event.title}</h3>
+
+                          <div className="flex items-center text-sm text-gray-500 mb-3">
+                            <svg className="shrink-0 mr-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            </svg>
+                            <span className="line-clamp-1">{event.location || 'TBA'}</span>
+                          </div>
+
+                          <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-2">{event.description}</p>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => isEventJoined(event.id) ? null : handleJoinClick(event)}
+                              disabled={isEventJoined(event.id)}
+                              className={`flex-1 inline-flex items-center justify-center px-4 py-2.5 border text-sm font-medium rounded-lg transition-all duration-200 ${isEventJoined(event.id)
+                                ? 'bg-green-50 text-green-700 border-green-200 cursor-not-allowed'
+                                : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm'
+                                }`}
+                            >
+                              {isEventJoined(event.id) ? (
+                                <>
+                                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Registered
+                                </>
+                              ) : (
+                                'Register Now'
+                              )}
+                            </button>
+
+                            {(isAdmin || (currentUser && event.created_by === currentUser.id)) && (
+                              <button
+                                onClick={() => handleDeleteEvent(event.id)}
+                                className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                                title="Delete Event"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
+
+              {/* Empty State */}
+              {filteredEvents.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="bg-blue-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <svg className="h-8 w-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
+                  <p className="text-sm text-gray-500 mb-4">There are no {activeTab} events at the moment.</p>
+                  {isAdmin && (
+                    <button
+                      onClick={handleCreateEvent}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      Create First Event
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </main>
         </div>

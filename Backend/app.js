@@ -9,6 +9,7 @@ import interviewRoutes from "./routes/interview.routes.js";
 import offerRoutes from "./routes/offer.routes.js";
 import { initDb } from "./db/initDb.js";
 import meetingRoutes from "./routes/meeting.routes.js";
+import eventRoutes from "./routes/event.routes.js";
 const app = express();
 
 app.use(cors());
@@ -29,6 +30,7 @@ app.use("/api", applicationRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/events", eventRoutes);
 
 // activities
 import activitiesRoutes from './routes/activities.routes.js';
@@ -48,6 +50,10 @@ app.use('/api/redeem', redeemRoutes);
 // Promotions routes
 import promotionRoutes from './routes/promotion.routes.js';
 app.use('/api/promotions', promotionRoutes);
+
+// Dashboard routes
+import dashboardRoutes from './routes/dashboard.routes.js';
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get("/", (req, res) => {
     res.send("Hello World");

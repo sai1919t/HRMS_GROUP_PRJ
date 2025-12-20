@@ -15,6 +15,7 @@ export const createJobsTable = async () => {
   `;
   try {
     await pool.query(query);
+    await pool.query(`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`);
     console.log("✅ Jobs table created successfully");
   } catch (error) {
     console.error("❌ Error creating jobs table:", error);

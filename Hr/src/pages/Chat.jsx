@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import io from "socket.io-client";
 import axios from "axios";
-import { Search, MoreVertical, Send, Phone, Video, Info, ArrowLeft, Clock } from "lucide-react";
+import { Search, MoreVertical, Send, Phone, Video, Info, ArrowLeft, Clock, Check, CheckCheck, Trash2, Edit2, MoreHorizontal } from "lucide-react";
+import toast, { Toaster } from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 
 const socket = io.connect("http://localhost:3000");
@@ -221,9 +222,19 @@ const Chat = () => {
           id: msg.id,
           text: msg.message,
           sender: msg.sender_id === currentUser.id ? "me" : "other",
-          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: msg.status,
+          is_edited: msg.is_edited,
+          is_deleted: msg.is_deleted
         }));
         setConversation(history);
+
+        // Mark last message from OTHER as read if it isn't already
+        const lastMsg = history[history.length - 1];
+        if (lastMsg && lastMsg.sender === 'other' && lastMsg.status !== 'read') {
+          socket.emit("message_read", { messageId: lastMsg.id, senderId: selectedChat });
+        }
+
       } catch (err) { console.error("Error loading history", err); }
     };
     fetchHistory();
@@ -243,6 +254,11 @@ const Chat = () => {
     const handleReceiveMessage = (data) => {
       console.log("📥 Chat: Received Message:", data);
 
+      // DEBUG: Log emission
+      if (data.id) console.log("📤 Emitting message_delivered for:", data.id);
+      else console.warn("⚠️ Received message without ID, cannot emit delivered");
+
+
 
       // Update active conversation if applicable
       const isChattingWithSender = String(data.senderId) === String(selectedChat) && String(data.receiverId) === String(currentUser?.id);
@@ -252,12 +268,30 @@ const Chat = () => {
         setConversation((prev) => [
           ...prev,
           {
-            id: Date.now(),
+            id: data.id || Date.now(),
             text: data.message,
             sender: String(data.senderId) === String(currentUser?.id) ? "me" : "other",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: 'read' // We are watching it now, so it's read
           }
         ]);
+        // If we are looking at this chat, mark as read immediately
+        if (data.id) socket.emit("message_read", { messageId: data.id, senderId: data.senderId });
+      }
+
+      // Always mark as delivered if we received it
+      if (data.id) socket.emit("message_delivered", { messageId: data.id, senderId: data.senderId });
+
+      // Toast notification if we are NOT chatting with this person
+      if (!isChattingWithSender && String(data.senderId) !== String(currentUser?.id)) {
+        toast.success(`New message from ${data.author || "User " + data.senderId}`, {
+          icon: '💬',
+          style: {
+            borderRadius: '10px',
+            background: '#333',
+            color: '#fff',
+          },
+        });
       }
 
       // Update Sidebar List (Reorder & Unread)
@@ -311,12 +345,107 @@ const Chat = () => {
       socket.off("receive_message", handleReceiveMessage);
     };
 
+
   }, [selectedChat, currentUser, allUsers]);
+
+  // --- 5. NEW: Listeners for Status, Edit, Delete ---
+  // Ref to store updates that arrive before the message ID is synced
+  const pendingUpdates = React.useRef(new Map());
+
+  // --- 5. NEW: Listeners for Status, Edit, Delete ---
+  useEffect(() => {
+    // Status update (delivered/read)
+    const handleStatusUpdate = (data) => {
+      console.log("📥 Chat: Status Update Received:", data);
+      setConversation(prev => {
+        const exists = prev.some(msg => msg.id === data.id);
+        if (!exists) { // Message ID mismatch (still tempId?)
+          console.log("⏳ Message not found yet (race condition?), caching update:", data.id, data.status);
+          pendingUpdates.current.set(String(data.id), data.status);
+          return prev;
+        }
+        return prev.map(msg =>
+          msg.id === data.id ? { ...msg, status: data.status } : msg
+        );
+      });
+    };
+
+    const handleMessageUpdated = (data) => {
+      setConversation(prev => prev.map(msg =>
+        msg.id === data.id ? { ...msg, text: data.text, is_edited: true } : msg
+      ));
+    };
+
+    const handleMessageDeleted = (data) => {
+      setConversation(prev => prev.map(msg =>
+        msg.id === data.id ? { ...msg, text: "This message was deleted", is_deleted: true } : msg
+      ));
+    };
+
+    const handleMessageSent = (data) => {
+      console.log("📥 Chat: Message Sent Confirmed:", data);
+
+      setConversation(prev => prev.map(msg => {
+        if (String(msg.id) === String(data.tempId)) {
+          // Check if we have pending status updates for this ID
+          const pendingStatus = pendingUpdates.current.get(String(data.id));
+          if (pendingStatus) {
+            console.log("🔄 Applying pending status update:", pendingStatus);
+            pendingUpdates.current.delete(String(data.id));
+            return { ...msg, id: data.id, status: pendingStatus };
+          }
+          return { ...msg, id: data.id, status: 'sent' };
+        }
+        return msg;
+      }));
+    };
+
+    socket.on("message_status_update", handleStatusUpdate);
+    socket.on("message_updated", handleMessageUpdated);
+    socket.on("message_deleted", handleMessageDeleted);
+    socket.on("message_sent", handleMessageSent);
+
+    return () => {
+      socket.off("message_status_update", handleStatusUpdate);
+      socket.off("message_updated", handleMessageUpdated);
+      socket.off("message_deleted", handleMessageDeleted);
+      socket.off("message_sent", handleMessageSent);
+    };
+  }, []);
+
+  const handleEditMessage = async (msgId, newText, receiverId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:3000/api/messages/${msgId}`, { message: newText }, { headers: { Authorization: `Bearer ${token}` } });
+
+      setConversation(prev => prev.map(m => m.id === msgId ? { ...m, text: newText, is_edited: true } : m));
+      socket.emit("edit_message", { id: msgId, text: newText, receiverId });
+      toast.success("Message edited");
+    } catch (err) {
+      toast.error("Failed to edit message");
+    }
+  };
+
+  const handleDeleteMessage = async (msgId, receiverId) => {
+    if (!window.confirm("Delete this message?")) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:3000/api/messages/${msgId}`, { headers: { Authorization: `Bearer ${token}` } });
+
+      setConversation(prev => prev.map(m => m.id === msgId ? { ...m, text: "This message was deleted", is_deleted: true } : m));
+      socket.emit("delete_message", { id: msgId, receiverId });
+      toast.success("Message deleted");
+    } catch (err) {
+      toast.error("Failed to delete message");
+    }
+  };
 
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() && currentUser && selectedChat) {
+      const tempId = Date.now();
       const messageData = {
+        id: tempId, // Send temp ID to server
         room: selectedChat,
         senderId: currentUser.id,
         receiverId: selectedChat,
@@ -329,7 +458,7 @@ const Chat = () => {
 
       setConversation(prev => [
         ...prev,
-        { id: Date.now(), text: inputMessage, sender: "me", time: messageData.time }
+        { id: tempId, text: inputMessage, sender: "me", time: messageData.time, status: 'sending' }
       ]);
 
       // Optimistic Sidebar Update
@@ -477,14 +606,55 @@ const Chat = () => {
 
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="text-center my-4">
+              <Toaster />
+              {/* <div className="text-center my-4">
                 <span className="text-xs font-medium text-gray-400 bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider">Today</span>
-              </div>
+              </div> */}
               {conversation.map(msg => (
-                <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[70%] md:max-w-[60%] rounded-2xl px-5 py-3 shadow-sm ${msg.sender === "me" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-white text-gray-800 border border-gray-100 rounded-tl-sm"}`}>
-                    <p className="text-sm leading-relaxed">{msg.text}</p>
-                    <p className={`text-[10px] mt-1.5 text-right font-medium opacity-70 ${msg.sender === "me" ? "text-blue-100" : "text-gray-400"}`}>{msg.time}</p>
+                <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"} group`}>
+                  <div className={`relative max-w-[70%] md:max-w-[60%] rounded-2xl px-5 py-3 shadow-sm ${msg.sender === "me" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-white text-gray-800 border border-gray-100 rounded-tl-sm"}`}>
+
+                    {/* Message Text */}
+                    <p className={`text-sm leading-relaxed ${msg.is_deleted ? 'italic opacity-60' : ''}`}>
+                      {msg.text}
+                      {msg.is_edited && !msg.is_deleted && <span className="text-[10px] opacity-60 ml-1">(edited)</span>}
+                    </p>
+
+                    {/* Metadata: Time + Ticks */}
+                    <div className={`flex items-center justify-end gap-1 mt-1.5 ${msg.sender === "me" ? "text-blue-100" : "text-gray-400"}`}>
+                      <p className="text-[10px] font-medium opacity-70">{msg.time}</p>
+
+                      {/* Ticks for My Messages */}
+                      {msg.sender === "me" && !msg.is_deleted && (
+                        <span className="flex items-center">
+                          {/* Sending (Clock) */}
+                          {msg.status === 'sending' && <Clock size={12} className="opacity-70" />}
+                          {/* Single Tick (Sent) */}
+                          {msg.status === 'sent' && <Check size={14} className="opacity-70" />}
+                          {/* Double Tick (Delivered/Read) */}
+                          {(msg.status === 'delivered' || msg.status === 'read') && (
+                            <CheckCheck size={14} className={msg.status === 'read' ? 'text-blue-200' : 'opacity-70'} />
+                          )}
+                          {/* Default fallback if status missing but "me" */}
+                          {!msg.status && <Check size={14} className="opacity-70" />}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Menu (Hover) */}
+                    {msg.sender === "me" && !msg.is_deleted && (
+                      <div className="absolute top-2 right-full mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-white shadow-md rounded-lg p-1 border border-gray-100">
+                        <button onClick={() => {
+                          const newText = prompt("Edit message:", msg.text);
+                          if (newText && newText !== msg.text) handleEditMessage(msg.id, newText, selectedChat);
+                        }} className="p-1.5 hover:bg-gray-100 rounded text-gray-600" title="Edit">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => handleDeleteMessage(msg.id, selectedChat)} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Delete">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

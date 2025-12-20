@@ -34,6 +34,8 @@ export const createUserTable = async () => {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_city VARCHAR(255) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_country VARCHAR(255) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT ''`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'Not Specified'`);
     console.log("✅ Users table created/updated successfully");
   } catch (error) {
     console.error("❌ Error creating users table:", error);
@@ -52,35 +54,36 @@ export const createUser = async (
   employee_id = '',
   profile_picture = '',
   status = 'ACTIVE',
-  role = 'Employee'
+  role = 'Employee',
+  gender = 'Not Specified'
 ) => {
   const query = `
-    INSERT INTO users (employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role)
-    VALUES ($1,$2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    INSERT INTO users (employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role, gender)
+    VALUES ($1,$2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *;
   `;
-  const values = [employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role];
+  const values = [employee_id, fullname, email, password, designation, job_title, department, phone, date_of_joining, status, profile_picture, role, gender];
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
 
-export const updateUserProfile = async (id, fullname, email, designation, profile_picture) => {
+export const updateUserProfile = async (id, fullname, email, designation, profile_picture, gender) => {
   let query = `
         UPDATE users 
-        SET fullname = $1, email = $2, designation = $3
+        SET fullname = $1, email = $2, designation = $3, gender = $5
         WHERE id = $4
         RETURNING *;
     `;
-  let values = [fullname, email, designation, id];
+  let values = [fullname, email, designation, id, gender];
 
   if (profile_picture) {
     query = `
             UPDATE users 
-            SET fullname = $1, email = $2, designation = $3, profile_picture = $4
+            SET fullname = $1, email = $2, designation = $3, profile_picture = $4, gender = $6
             WHERE id = $5
             RETURNING *;
         `;
-    values = [fullname, email, designation, profile_picture, id];
+    values = [fullname, email, designation, profile_picture, id, gender];
   }
 
   const { rows } = await pool.query(query, values);
@@ -114,7 +117,9 @@ export const updateUser = async (id, updates) => {
     "status",
     "profile_picture",
     "location_city",
+    "location_city",
     "location_country",
+    "gender",
   ];
   const setClauses = [];
   const values = [];

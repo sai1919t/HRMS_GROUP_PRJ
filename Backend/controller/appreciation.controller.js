@@ -9,13 +9,14 @@ import {
     checkUserLiked,
     addComment,
     deleteComment,
-    getComments
+    getComments,
+    getLeaderboard
 } from "../models/appreciation.model.js";
 
 // Create new appreciation
 export const createAppreciationController = async (req, res) => {
     try {
-        const { recipient_id, title, category, message, emoji, points } = req.body;
+        const { recipient_id, title, category, message, emoji, points, source } = req.body;
         const sender_id = req.user.id; // From auth middleware
 
         if (!recipient_id || !title || !category || !message) {
@@ -55,7 +56,8 @@ export const createAppreciationController = async (req, res) => {
             category,
             message,
             points || 0,
-            emoji || '🎉'
+            emoji || '🎉',
+            source || 'feed'
         );
 
         // Emit activity update to client via event (frontend listens for activity:updated)
@@ -80,7 +82,8 @@ export const createAppreciationController = async (req, res) => {
 // Get all appreciations
 export const getAllAppreciationsController = async (req, res) => {
     try {
-        const appreciations = await getAllAppreciations();
+        const { source } = req.query;
+        const appreciations = await getAllAppreciations(source);
 
         // Add user liked status if user is authenticated
         if (req.user) {
@@ -326,6 +329,32 @@ export const getCommentsController = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch comments",
+            error: error.message
+        });
+    }
+};
+
+// Get leaderboard
+export const getLeaderboardController = async (req, res) => {
+    try {
+        const leaderboard = await getLeaderboard();
+
+        // Add rank
+        const leaderboardWithRank = leaderboard.map((user, index) => ({
+            ...user,
+            rank: index + 1,
+            points: Number(user.points) // Ensure points is a number
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: leaderboardWithRank
+        });
+    } catch (error) {
+        console.error("Error fetching leaderboard:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch leaderboard",
             error: error.message
         });
     }

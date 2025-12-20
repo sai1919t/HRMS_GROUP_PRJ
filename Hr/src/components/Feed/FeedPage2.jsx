@@ -57,7 +57,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     const fetchAppreciations = async () => {
         try {
             setLoading(true);
-            const response = await getAllAppreciations();
+            const response = await getAllAppreciations('feed');
             if (response.success) {
                 setAppreciations(response.data);
             }

@@ -7,12 +7,20 @@ export const createMessagesTable = async () => {
         sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         receiver_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         message TEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'sent',
+        is_edited BOOLEAN DEFAULT FALSE,
+        is_deleted BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     `;
     try {
         await pool.query(query);
-        console.log("✅ Messages table created successfully");
+        // Migrations
+        await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'sent'`);
+        await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT FALSE`);
+        await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`);
+
+        console.log("✅ Messages table created/updated successfully");
     } catch (error) {
         console.error("❌ Error creating messages table:", error);
     }
@@ -20,8 +28,8 @@ export const createMessagesTable = async () => {
 
 export const createMessage = async (senderId, receiverId, message) => {
     const query = `
-        INSERT INTO messages (sender_id, receiver_id, message)
-        VALUES ($1, $2, $3)
+        INSERT INTO messages (sender_id, receiver_id, message, status)
+        VALUES ($1, $2, $3, 'sent')
         RETURNING *;
     `;
     const result = await pool.query(query, [senderId, receiverId, message]);
@@ -39,6 +47,25 @@ export const getMessages = async (userId1, userId2) => {
     return result.rows;
 };
 
+export const updateMessageStatus = async (id, status) => {
+    const query = `UPDATE messages SET status = $1 WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [status, id]);
+    return result.rows[0];
+};
+
+export const editMessage = async (id, newMessage) => {
+    const query = `UPDATE messages SET message = $1, is_edited = TRUE WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [newMessage, id]);
+    return result.rows[0];
+};
+
+export const deleteMessage = async (id) => {
+    // Soft delete: We keep the record but mark as deleted and hide content
+    const query = `UPDATE messages SET is_deleted = TRUE, message = '' WHERE id = $1 RETURNING *`;
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+};
+
 export const getRecentConversations = async (userId) => {
     if (!userId || isNaN(userId)) return [];
 
@@ -47,8 +74,13 @@ export const getRecentConversations = async (userId) => {
             other_user_id AS id,
             u.fullname AS name,
             u.email AS role,
-            m.message AS message,
-            m.created_at AS time
+            CASE 
+                WHEN m.is_deleted = TRUE THEN 'This message was deleted'
+                ELSE m.message 
+            END AS message,
+            m.created_at AS time,
+            m.status,
+            m.sender_id
         FROM (
             SELECT 
                 CASE
@@ -56,7 +88,10 @@ export const getRecentConversations = async (userId) => {
                     ELSE sender_id
                 END AS other_user_id,
                 message,
-                created_at
+                created_at,
+                is_deleted,
+                status,
+                sender_id
             FROM messages
             WHERE sender_id = $1 OR receiver_id = $1
         ) m

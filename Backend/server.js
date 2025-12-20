@@ -19,6 +19,7 @@ import { createJobsTable } from "./models/job.model.js";
 import { createApplicationsTable } from "./models/application.model.js";
 import { createOffersTable } from "./models/offer.model.js";
 import { createInterviewsTable } from "./models/interview.model.js";
+import { createEventTable } from "./models/event.model.js";
 
 import { Server } from "socket.io";
 import dotenv from "dotenv";
@@ -60,13 +61,18 @@ io.on("connection", (socket) => {
 
     // Handle sending messages
     socket.on("send_message", async (data) => {
-        console.log("Message received:", data);
-        // Data expected: { senderId, receiverId, message, room }
+        console.log("📨 Server: send_message received. Data:", JSON.stringify(data, null, 2));
+        // Data expected: { senderId, receiverId, message, room, id (tempId) }
 
         // Save to DB
         try {
             if (data.senderId && data.receiverId) {
                 const savedMsg = await createMessage(data.senderId, data.receiverId, data.message);
+
+                // Ack to Sender with Real ID
+                socket.emit("message_sent", { tempId: data.id, id: savedMsg.id });
+                console.log(`📤 Server: Emitted message_sent to sender. TempID: ${data.id}, RealID: ${savedMsg.id}`);
+
                 data.id = savedMsg.id; // Add DB id to data
                 data.created_at = savedMsg.created_at;
             }
@@ -75,7 +81,59 @@ io.on("connection", (socket) => {
         }
 
         // Broadcast the message to everyone (simplest for now) or specific room
-        socket.broadcast.emit("receive_message", data);
+        // socket.broadcast.emit("receive_message", data);
+
+        // BETTER: Send only to receiver
+        const receiverSocketId = onlineUsers.get(String(data.receiverId));
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("receive_message", { ...data, status: 'sent' });
+        }
+    });
+
+    socket.on("message_delivered", async (data) => {
+        console.log("🔔 Server: Received message_delivered:", data);
+        // data: { messageId, senderId }
+        const { updateMessageStatus } = await import('./models/message.model.js');
+        if (data.messageId) await updateMessageStatus(data.messageId, 'delivered');
+
+        const senderSocketId = onlineUsers.get(String(data.senderId));
+        console.log(`🔍 Looking for sender ${data.senderId}. Socket ID: ${senderSocketId}`);
+
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("message_status_update", { id: data.messageId, status: 'delivered' });
+            console.log(`📤 Emitted message_status_update (delivered) to ${data.senderId}`);
+        } else {
+            console.warn(`⚠️ Sender ${data.senderId} not found in onlineUsers`);
+        }
+    });
+
+    socket.on("message_read", async (data) => {
+        console.log("🔔 Server: Received message_read:", data);
+        // data: { messageId, senderId }
+        const { updateMessageStatus } = await import('./models/message.model.js');
+        if (data.messageId) await updateMessageStatus(data.messageId, 'read');
+
+        const senderSocketId = onlineUsers.get(String(data.senderId));
+        if (senderSocketId) {
+            io.to(senderSocketId).emit("message_status_update", { id: data.messageId, status: 'read' });
+            console.log(`📤 Emitted message_status_update (read) to ${data.senderId}`);
+        }
+    });
+
+    socket.on("edit_message", async (data) => {
+        // data: { id, text, receiverId }
+        const receiverSocketId = onlineUsers.get(String(data.receiverId));
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("message_updated", { id: data.id, text: data.text });
+        }
+    });
+
+    socket.on("delete_message", async (data) => {
+        // data: { id, receiverId }
+        const receiverSocketId = onlineUsers.get(String(data.receiverId));
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("message_deleted", { id: data.id });
+        }
     });
 
     socket.on("disconnect", () => {
@@ -106,6 +164,32 @@ app.get("/api/messages/:user1/:user2", async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: "Failed to fetch messages" });
+    }
+});
+
+// API for Message Actions (Edit/Delete)
+app.put("/api/messages/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { message } = req.body;
+        const { editMessage } = await import('./models/message.model.js');
+        const updated = await editMessage(id, message);
+        res.json(updated);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to edit message" });
+    }
+});
+
+app.delete("/api/messages/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { deleteMessage } = await import('./models/message.model.js');
+        const deleted = await deleteMessage(id);
+        res.json(deleted);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to delete message" });
     }
 });
 
@@ -195,29 +279,38 @@ const initDb = async () => {
     await createInterviewsTable();
     await createOffersTable();
     await createMessagesTable();
-    await createMeetingTable(); // Create meetings table
     // create points table
     try {
-      const { createPointsTable } = await import('./models/points.model.js');
-      await createPointsTable();
+        const { createPointsTable } = await import('./models/points.model.js');
+        await createPointsTable();
     } catch (err) {
-      console.error('Error creating points table', err);
+        console.error('Error creating points table', err);
     }
 
     // create redemption tables
     try {
-      const { createRedemptionTables } = await import('./models/redemption.model.js');
-      await createRedemptionTables();
+        const { createRedemptionTables } = await import('./models/redemption.model.js');
+        await createRedemptionTables();
     } catch (err) {
-      console.error('Error creating redemption tables', err);
+        console.error('Error creating redemption tables', err);
     }
 
     // create promotions tables
     try {
-      const { createPromotionsTable } = await import('./models/promotion.model.js');
-      await createPromotionsTable();
+        const { createPromotionsTable } = await import('./models/promotion.model.js');
+        await createPromotionsTable();
     } catch (err) {
-      console.error('Error creating promotions tables', err);
+        console.error('Error creating promotions tables', err);
+    }
+
+    await createEventTable(); // Create events and event_attendees tables
+
+    // create dashboard stats table
+    try {
+        const { createDashboardStatsTable } = await import('./models/dashboard.model.js');
+        await createDashboardStatsTable();
+    } catch (err) {
+        console.error('Error creating dashboard stats table', err);
     }
 };
 
