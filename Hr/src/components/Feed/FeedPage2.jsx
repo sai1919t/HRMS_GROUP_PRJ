@@ -9,6 +9,7 @@ import {
 // Ensure you have created this file in src/services/meetingService.js
 import { getUpcomingMeetings } from '../../services/meetingService';
 import { Link } from 'react-router-dom';
+import { getAllEvents } from '../../services/event.service';
 import Promotion from '../../pages/Promotion';
 
 const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateForm }) => {
@@ -117,6 +118,33 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
             console.error('Failed to load meetings:', err);
         }
     };
+
+    // Events for feed
+    const [events, setEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                setEventsLoading(true);
+                const res = await getAllEvents();
+                const ev = Array.isArray(res) ? res : (res.events || res);
+                setEvents(ev || []);
+            } catch (err) {
+                console.error('Failed to fetch events', err);
+            } finally {
+                setEventsLoading(false);
+            }
+        };
+        fetchEvents();
+        const onEventsUpdated = () => fetchEvents();
+        window.addEventListener('events:updated', onEventsUpdated);
+        window.addEventListener('activity:updated', onEventsUpdated);
+        return () => {
+            window.removeEventListener('events:updated', onEventsUpdated);
+            window.removeEventListener('activity:updated', onEventsUpdated);
+        };
+    }, []);
 
     const handleLike = async (appreciationId) => {
         try {
@@ -480,7 +508,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                             </button>
                         </div>
 
-                        {/* Upcoming Events */}
+                        {/* Upcoming Events (dynamic) */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -491,35 +519,26 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                 </h3>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Team Building Workshop</p>
-                                        <p className="text-xs text-gray-500">10:00 AM - 1:00 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">13 Oct</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Employee of the Month Award</p>
-                                        <p className="text-xs text-gray-500">4:00 PM - 4:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">20 Oct</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Diversity and Inclusion Seminar</p>
-                                        <p className="text-xs text-gray-500">9:30 AM - 12:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">5 Nov</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Town Hall Meeting</p>
-                                        <p className="text-xs text-gray-500">2:00 PM - 3:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">10 Nov</span>
-                                </div>
-                                <button className="text-[#266ECD] text-sm font-semibold hover:underline">More...</button>
+                                {eventsLoading ? (
+                                    <p className="text-sm text-gray-500">Loading events...</p>
+                                ) : events.filter(e => new Date(e.event_date) >= new Date().setHours(0,0,0)).length === 0 ? (
+                                    <p className="text-sm text-gray-500">No upcoming events</p>
+                                ) : (
+                                    events
+                                        .filter(e => new Date(e.event_date) >= new Date().setHours(0,0,0))
+                                        .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
+                                        .slice(0,4)
+                                        .map(ev => (
+                                            <div key={ev.id} className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                                                    <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                            </div>
+                                        ))
+                                )}
+                                <Link to="/event" className="text-[#266ECD] text-sm font-semibold hover:underline">More...</Link>
                             </div>
                         </div>
                     </div>

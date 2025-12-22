@@ -90,6 +90,7 @@ const ProfessionalEventsPage = () => {
         setJoinForm({ name: '', email: '', company: '', position: '' });
         // Refresh events to get updated attendee count
         fetchEvents();
+        try { window.dispatchEvent(new CustomEvent('events:updated')); } catch(e) {}
       } catch (error) {
         alert(`Failed to register: ${error.message}`);
       }
@@ -131,6 +132,7 @@ const ProfessionalEventsPage = () => {
       alert('Event created successfully!');
       // Refresh events list
       fetchEvents();
+      try { window.dispatchEvent(new CustomEvent('events:updated')); } catch(e) {}
     } catch (error) {
       alert(`Failed to create event: ${error.message}`);
     }
@@ -150,6 +152,7 @@ const ProfessionalEventsPage = () => {
         await deleteEventAPI(eventId);
         alert('Event deleted successfully');
         fetchEvents();
+        try { window.dispatchEvent(new CustomEvent('events:updated')); } catch(e) {}
       } catch (error) {
         alert(`Failed to delete event: ${error.message}`);
       }

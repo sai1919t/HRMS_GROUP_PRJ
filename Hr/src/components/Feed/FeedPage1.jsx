@@ -10,6 +10,7 @@ import {
 } from '../../services/appreciationService';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { getAllEvents } from '../../services/event.service';
 
 const FeedPage1 = ({ onNavigateBack }) => {
     // State for the "Give Points" interaction
@@ -86,6 +87,42 @@ const FeedPage1 = ({ onNavigateBack }) => {
         const onActivity = () => fetchUserPoints();
         window.addEventListener('activity:updated', onActivity);
         return () => window.removeEventListener('activity:updated', onActivity);
+    }, []);
+
+    // Events for feed (upcoming/past)
+    const [events, setEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+
+    const getEventCategory = (eventDate) => {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const eventDateObj = new Date(eventDate);
+      eventDateObj.setHours(0,0,0,0);
+      return eventDateObj >= today ? 'upcoming' : 'past';
+    };
+
+    useEffect(() => {
+      const fetchEvents = async () => {
+        try {
+          setEventsLoading(true);
+          const res = await getAllEvents();
+          const ev = Array.isArray(res) ? res : (res.events || res);
+          setEvents(ev || []);
+        } catch (e) {
+          console.error('Failed to fetch events', e);
+        } finally {
+          setEventsLoading(false);
+        }
+      };
+      fetchEvents();
+
+      const onEventsUpdated = () => fetchEvents();
+      window.addEventListener('events:updated', onEventsUpdated);
+      window.addEventListener('activity:updated', onEventsUpdated);
+      return () => {
+        window.removeEventListener('events:updated', onEventsUpdated);
+        window.removeEventListener('activity:updated', onEventsUpdated);
+      };
     }, []);
 
     const handleGivePoints = () => {
@@ -278,25 +315,36 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </button>
                         </div>
 
-                        {/* Upcoming Events */}
+                        {/* Upcoming Events (dynamic) */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 002-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                                     </svg>
                                     Upcoming Events
                                 </h3>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Town Hall Meeting</p>
-                                        <p className="text-xs text-gray-500">2:00 PM - 3:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">10 Nov</span>
-                                </div>
-                                <button className="text-[#266ECD] text-sm font-semibold hover:underline">More...</button>
+                                {eventsLoading ? (
+                                  <p className="text-sm text-gray-500">Loading events...</p>
+                                ) : events.filter(e => getEventCategory(e.event_date) === 'upcoming').length === 0 ? (
+                                  <p className="text-sm text-gray-500">No upcoming events</p>
+                                ) : (
+                                  events.filter(e => getEventCategory(e.event_date) === 'upcoming')
+                                    .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
+                                    .slice(0,3)
+                                    .map(ev => (
+                                      <div className="flex justify-between items-start" key={ev.id}>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                                          <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-900">{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                      </div>
+                                    ))
+                                )}
+                                <Link to="/event" className="text-[#266ECD] text-sm font-semibold hover:underline">More...</Link>
                             </div>
                         </div>
                     </div>
