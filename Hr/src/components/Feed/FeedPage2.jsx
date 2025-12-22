@@ -160,6 +160,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
             try {
                 await deleteAppreciation(appreciationId);
                 setAppreciations(prev => prev.filter(a => a.id !== appreciationId));
+                try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
             } catch (err) {
                 alert('Failed to delete appreciation. You can only delete your own posts.');
                 console.error(err);
@@ -391,15 +392,23 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                             </svg>
                                             <span className="font-medium">{appreciation.comments_count || 0}</span>
                                         </button>
-                                        <button
-                                            onClick={() => handleDelete(appreciation.id)}
-                                            className="ml-auto text-red-500 hover:text-red-700"
-                                            title="Delete appreciation"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
+                                        {(() => {
+                                            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                                            if (currentUser && currentUser.id && currentUser.id === appreciation.sender_id) {
+                                                return (
+                                                    <button
+                                                        onClick={() => handleDelete(appreciation.id)}
+                                                        className="ml-auto text-red-500 hover:text-red-700"
+                                                        title="Delete appreciation"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
 
                                     {/* Comments Section */}
