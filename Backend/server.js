@@ -69,12 +69,15 @@ io.on("connection", (socket) => {
             if (data.senderId && data.receiverId) {
                 const savedMsg = await createMessage(data.senderId, data.receiverId, data.message);
 
-                // Ack to Sender with Real ID
-                socket.emit("message_sent", { tempId: data.id, id: savedMsg.id });
+                // Normalize created_at to ISO (UTC) so clients can reliably convert to local time
+                const createdAtIso = savedMsg.created_at ? new Date(savedMsg.created_at).toISOString() : new Date().toISOString();
+
+                // Ack to Sender with Real ID and ISO timestamp
+                socket.emit("message_sent", { tempId: data.id, id: savedMsg.id, created_at: createdAtIso });
                 console.log(`📤 Server: Emitted message_sent to sender. TempID: ${data.id}, RealID: ${savedMsg.id}`);
 
                 data.id = savedMsg.id; // Add DB id to data
-                data.created_at = savedMsg.created_at;
+                data.created_at = createdAtIso;
             }
         } catch (err) {
             console.error("Error saving message:", err);

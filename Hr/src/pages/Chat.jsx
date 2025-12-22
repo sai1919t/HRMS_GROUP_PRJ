@@ -24,6 +24,68 @@ const Chat = () => {
   const [chatListOpen, setChatListOpen] = useState(true)
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Helper: robust time formatting (handles ISO and DB strings and converts to local time)
+  const formatTime = (isoOrDate) => {
+    try {
+      if (!isoOrDate) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // If it's already a Date instance, use it
+      if (isoOrDate instanceof Date) {
+        return isoOrDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      let s = String(isoOrDate).trim();
+
+      // If it is a simple 'HH:MM AM/PM' string coming from client, return as-is (but normalized)
+      if (/^\d{1,2}:\d{2}\s?(AM|PM)$/i.test(s)) {
+        // Make sure to uppercase AM/PM and pad hour
+        return s.toUpperCase();
+      }
+
+      // Detect ISO with timezone or offset
+      const hasTZ = /[Zz]|[+\-]\d{2}:?\d{2}/.test(s);
+      const hasT = s.includes('T');
+
+      let d;
+
+      // DB common formats:
+      // 1) 'YYYY-MM-DD HH:mm:ss' -> treat as local time (no timezone)
+      // 2) 'YYYY-MM-DDTHH:mm:ss' (no TZ) -> treat as local time
+      // 3) ISO with Z or offset -> use Date(s)
+
+      const dbSpaceFormat = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?/;
+      const isoNoTZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
+
+      if (hasTZ) {
+        d = new Date(s);
+      } else if (dbSpaceFormat.test(s) || isoNoTZ.test(s)) {
+        // Parse as local time exactly (do not append Z)
+        // Extract components
+        const parts = s.replace('T', ' ').split(' ');
+        const dateParts = parts[0].split('-');
+        const timeParts = (parts[1] || '').split(':');
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const day = parseInt(dateParts[2], 10);
+        const hour = parseInt(timeParts[0] || '0', 10);
+        const minute = parseInt(timeParts[1] || '0', 10);
+        const second = parseInt(timeParts[2] || '0', 10);
+        d = new Date(year, month, day, hour, minute, second);
+      } else if (hasT) {
+        // fallback parse
+        d = new Date(s);
+      } else {
+        // For any other string, fallback to Date
+        d = new Date(s);
+      }
+
+      if (isNaN(d.getTime())) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  };
+
   // Conversation state
   const [conversation, setConversation] = useState([]);
 
@@ -61,7 +123,7 @@ const Chat = () => {
             name: user.name,
             role: user.role,
             message: user.message,
-            time: user.time ? new Date(user.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
+            time: user.time ? formatTime(user.time) : "",
             avatar: user.name ? user.name.charAt(0).toUpperCase() : "?",
             unread: false, // You might want real unread count from DB later
             isRecent: true
@@ -222,7 +284,7 @@ const Chat = () => {
           id: msg.id,
           text: msg.message,
           sender: msg.sender_id === currentUser.id ? "me" : "other",
-          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: formatTime(msg.created_at),
           status: msg.status,
           is_edited: msg.is_edited,
           is_deleted: msg.is_deleted
@@ -251,102 +313,102 @@ const Chat = () => {
 
   // Listen for incoming messages
   useEffect(() => {
-    const handleReceiveMessage = (data) => {
-      console.log("📥 Chat: Received Message:", data);
+  const handleReceiveMessage = (data) => {
+    console.log("📥 Chat: Received Message:", data);
 
-      // DEBUG: Log emission
-      if (data.id) console.log("📤 Emitting message_delivered for:", data.id);
-      else console.warn("⚠️ Received message without ID, cannot emit delivered");
+    // DEBUG: Log emission
+    if (data.id) console.log("📤 Emitting message_delivered for:", data.id);
+    else console.warn("⚠️ Received message without ID, cannot emit delivered");
 
+    // Update active conversation if applicable
+    const isChattingWithSender =
+      String(data.senderId) === String(selectedChat) &&
+      String(data.receiverId) === String(currentUser?.id);
 
+    const isChattingWithReceiver =
+      String(data.senderId) === String(currentUser?.id) &&
+      String(data.receiverId) === String(selectedChat);
 
-      // Update active conversation if applicable
-      const isChattingWithSender = String(data.senderId) === String(selectedChat) && String(data.receiverId) === String(currentUser?.id);
-      const isChattingWithReceiver = String(data.senderId) === String(currentUser?.id) && String(data.receiverId) === String(selectedChat);
+    if (isChattingWithSender || isChattingWithReceiver) {
+      setConversation((prev) => [
+        ...prev,
+        {
+          id: data.id || Date.now(),
+          text: data.message,
+          sender: String(data.senderId) === String(currentUser?.id) ? "me" : "other",
+          time: formatTime(data.created_at),
+          status: "read", // We are watching it now, so it's read
+        },
+      ]);
+      if (data.id) socket.emit("message_read", { messageId: data.id, senderId: data.senderId });
+    }
 
-      if (isChattingWithSender || isChattingWithReceiver) {
-        setConversation((prev) => [
-          ...prev,
-          {
-            id: data.id || Date.now(),
-            text: data.message,
-            sender: String(data.senderId) === String(currentUser?.id) ? "me" : "other",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'read' // We are watching it now, so it's read
-          }
-        ]);
-        // If we are looking at this chat, mark as read immediately
-        if (data.id) socket.emit("message_read", { messageId: data.id, senderId: data.senderId });
-      }
+    // Always mark as delivered
+    if (data.id) socket.emit("message_delivered", { messageId: data.id, senderId: data.senderId });
 
-      // Always mark as delivered if we received it
-      if (data.id) socket.emit("message_delivered", { messageId: data.id, senderId: data.senderId });
-
-      // Toast notification if we are NOT chatting with this person
-      if (!isChattingWithSender && String(data.senderId) !== String(currentUser?.id)) {
-        toast.success(`New message from ${data.author || "User " + data.senderId}`, {
-          icon: '💬',
-          style: {
-            borderRadius: '10px',
-            background: '#333',
-            color: '#fff',
-          },
-        });
-      }
-
-      // Update Sidebar List (Reorder & Unread)
-      setRecentChats(prev => {
-        const senderId = String(data.senderId) === String(currentUser?.id) ? data.receiverId : data.senderId;
-        const senderIndex = prev.findIndex(c => String(c.id) === String(senderId));
-
-        let updatedContacts = [...prev];
-        let sender;
-
-        if (senderIndex !== -1) {
-          // User already in recent list
-          [sender] = updatedContacts.splice(senderIndex, 1);
-        } else {
-          // User not in recent list - find in allUsers or create placeholder
-          const userDetails = allUsers.find(u => String(u.id) === String(senderId));
-
-          if (!userDetails) {
-            console.warn(`Sender ${senderId} not found in allUsers directory. Using fallback.`);
-            sender = {
-              id: senderId,
-              name: "New Contact", // Fallback name
-              avatar: "?",
-              role: "Employee",
-              status: 'online',
-              isRecent: true
-            };
-          } else {
-            sender = { ...userDetails };
-          }
-        }
-
-        // Update unread status only if not currently chatting with them
-        const isUnread = String(senderId) !== String(selectedChat);
-
-        updatedContacts.unshift({
-          ...sender,
-          unread: isUnread || sender.unread,
-          message: data.message,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-
-        return updatedContacts;
+    // Toast notification
+    if (
+      String(data.receiverId) === String(currentUser?.id) &&
+      String(data.senderId) !== String(currentUser?.id)
+    ) {
+      toast.success(`New message from ${data.author || "User " + data.senderId}`, {
+        icon: "💬",
+        style: {
+          borderRadius: "10px",
+          background: "#333",
+          color: "#fff",
+        },
       });
-    };
+    }
 
-    socket.on("receive_message", handleReceiveMessage);
+    // Update Sidebar List (Reorder & Unread)
+    setRecentChats((prev) => {
+      const senderId =
+        String(data.senderId) === String(currentUser?.id) ? data.receiverId : data.senderId;
+      const senderIndex = prev.findIndex((c) => String(c.id) === String(senderId));
 
-    // Cleanup listener on unmount/dep change to avoid duplicates
-    return () => {
-      socket.off("receive_message", handleReceiveMessage);
-    };
+      let updatedContacts = [...prev];
+      let sender;
 
+      if (senderIndex !== -1) {
+        [sender] = updatedContacts.splice(senderIndex, 1);
+      } else {
+        const userDetails = allUsers.find((u) => String(u.id) === String(senderId));
+        if (!userDetails) {
+          console.warn(`Sender ${senderId} not found in allUsers directory. Using fallback.`);
+          sender = {
+            id: senderId,
+            name: "New Contact",
+            avatar: "?",
+            role: "Employee",
+            status: "online",
+            isRecent: true,
+            unread: false,
+          };
+        } else {
+          sender = { ...userDetails, unread: false };
+        }
+      }
 
-  }, [selectedChat, currentUser, allUsers]);
+      const isUnread = String(senderId) !== String(selectedChat);
+
+      updatedContacts.unshift({
+        ...sender,
+        unread: isUnread || sender.unread || false,
+        message: data.message,
+        time: formatTime(data.created_at),
+      });
+
+      return updatedContacts;
+    });
+  };
+
+  socket.on("receive_message", handleReceiveMessage);
+
+  return () => {
+    socket.off("receive_message", handleReceiveMessage);
+  };
+}, [socket, selectedChat, currentUser, allUsers, formatTime]);
 
   // --- 5. NEW: Listeners for Status, Edit, Delete ---
   // Ref to store updates that arrive before the message ID is synced
@@ -392,12 +454,28 @@ const Chat = () => {
           if (pendingStatus) {
             console.log("🔄 Applying pending status update:", pendingStatus);
             pendingUpdates.current.delete(String(data.id));
-            return { ...msg, id: data.id, status: pendingStatus };
+            return { ...msg, id: data.id, status: pendingStatus, time: data.created_at ? formatTime(data.created_at) : msg.time };
           }
-          return { ...msg, id: data.id, status: 'sent' };
+          return { ...msg, id: data.id, status: 'sent', time: data.created_at ? formatTime(data.created_at) : msg.time };
         }
         return msg;
       }));
+
+      // Also update the sidebar/recent chats entry for the receiver so time matches DB
+      if (data && data.receiverId) {
+        setRecentChats(prev => {
+          const idx = prev.findIndex(c => String(c.id) === String(data.receiverId));
+          if (idx !== -1) {
+            const updated = [...prev];
+            updated[idx] = {
+              ...updated[idx],
+              time: data.created_at ? formatTime(data.created_at) : updated[idx].time
+            };
+            return updated;
+          }
+          return prev;
+        });
+      }
     };
 
     socket.on("message_status_update", handleStatusUpdate);
