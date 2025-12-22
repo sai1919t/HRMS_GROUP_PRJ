@@ -244,7 +244,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed: Your Hub for Updates and Interaction</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        {isAdmin && (
+                        {(
                             <button
                                 onClick={onNavigateToCreateForm}
                                 className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
