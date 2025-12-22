@@ -20,6 +20,11 @@ function EmployeesPage() {
     }
 
     fetchUsers();
+
+    // Refresh users (and points) when activity updates (e.g., points transfers)
+    const onActivity = () => fetchUsers();
+    window.addEventListener('activity:updated', onActivity);
+    return () => window.removeEventListener('activity:updated', onActivity);
   }, []);
 
   const fetchUsers = async () => {
@@ -160,6 +165,7 @@ function EmployeesPage() {
                     <th className="px-6 py-4">Employee</th>
                     <th className="px-6 py-4">Role & Dept</th>
                     <th className="px-6 py-4">Contact</th>
+                    <th className="px-6 py-4">Points</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Joined</th>
                     <th className="px-6 py-4 text-right">Actions</th>
@@ -201,6 +207,9 @@ function EmployeesPage() {
                               {user.phone || "N/A"}
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-800">
+                          {user.points || 0}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
