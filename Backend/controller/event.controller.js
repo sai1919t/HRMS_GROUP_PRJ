@@ -156,6 +156,9 @@ export const deleteEventController = async (req, res) => {
 };
 
 // Register user for an event
+import { sendMail } from "../utils/email.js";
+import { findUserById } from "../models/user.model.js";
+
 export const registerAttendeeController = async (req, res) => {
     try {
         const { id } = req.params; // event_id
@@ -163,6 +166,32 @@ export const registerAttendeeController = async (req, res) => {
         const user_id = req.userId;
 
         const attendee = await registerAttendee(id, user_id, rsvp_status || "Confirmed");
+
+        // Fetch event and user details for email
+        const event = await getEventById(id);
+        const user = await findUserById(user_id);
+
+        // Send confirmation email (best-effort)
+        if (user && user.email) {
+            try {
+                const subject = `Registration confirmed: ${event.title}`;
+                const eventDate = event?.event_date ? new Date(event.event_date).toLocaleDateString() : '';
+                const start = event?.start_time || '';
+                const end = event?.end_time || '';
+                const html = `<p>Hi ${user.fullname || ''},</p>
+                    <p>You've successfully registered for <strong>${event.title}</strong>.</p>
+                    <p><strong>Date:</strong> ${eventDate}</p>
+                    <p><strong>Time:</strong> ${start} ${end ? ` - ${end}` : ''}</p>
+                    <p><strong>Location:</strong> ${event.location || 'TBD'}</p>
+                    <p>RSVP status: ${rsvp_status || 'Confirmed'}</p>
+                    <p>Thank you,<br/>HRMS Team</p>`;
+
+                await sendMail({ to: user.email, subject, html });
+                console.log(`Event registration email sent to ${user.email}`);
+            } catch (err) {
+                console.error('Failed to send registration email:', err);
+            }
+        }
 
         res.status(201).json({
             message: "Successfully registered for event",
