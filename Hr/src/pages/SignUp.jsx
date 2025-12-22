@@ -11,6 +11,7 @@ const SignUp = () => {
   const [phone, setPhone] = useState("");
   const [dateOfJoining, setDateOfJoining] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [gender, setGender] = useState('');
   const [profilePicture, setProfilePicture] = useState("");
   const [profileFile, setProfileFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -180,6 +181,16 @@ const SignUp = () => {
               <div>
                 <label htmlFor="employeeId" className="block text-sm font-semibold mb-1 text-black">Employee ID</label>
                 <input id="employeeId" name="employeeId" type="text" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base" placeholder="Optional" />
+              </div>
+
+              <div>
+                <label htmlFor="gender" className="block text-sm font-semibold mb-1 text-black">Gender</label>
+                <select id="gender" name="gender" value={gender} onChange={(e) => setGender(e.target.value)} className="w-full max-w-[400px] border border-gray-300 rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base">
+                  <option value="">Prefer not to say</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
               <div>

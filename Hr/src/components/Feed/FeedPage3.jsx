@@ -239,7 +239,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                         <>
                             {/* Employee of the Month Card */}
                             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 relative overflow-hidden group">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#020839] to-orange-500"></div>
+                                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-[#020839] to-orange-500"></div>
 
                                 {/* Header */}
                                 <div className="flex justify-between items-start mb-8 z-10 relative">

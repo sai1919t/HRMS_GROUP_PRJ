@@ -8,7 +8,7 @@ import pool from "../db/db.js";
 export const signup = async (req, res) => {
     try {
         console.log("DATABASE_URL =", process.env.DATABASE_URL);
-        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role } = req.body;
+        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role, gender } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
@@ -26,7 +26,8 @@ export const signup = async (req, res) => {
             employee_id,
             profile_picture,
             status,
-            role || 'Employee'
+            role || 'Employee',
+            gender || 'Not Specified'
         );
 
         console.log("--------------------------------------------------");
@@ -59,6 +60,7 @@ export const signup = async (req, res) => {
                 status: newUser.status,
                 role: newUser.role,
                 profile_picture: newUser.profile_picture,
+                gender: newUser.gender,
                 created_at: newUser.created_at
             }
         });
@@ -109,7 +111,9 @@ export const login = async (req, res) => {
                 id: user.id,
                 fullname: user.fullname,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                profile_picture: user.profile_picture,
+                gender: user.gender
             }
         });
     } catch (error) {
@@ -204,7 +208,7 @@ export const addUser = async (req, res) => {
         // const requester = await findUserById(req.userId); 
         // if (requester.role !== 'Admin') return res.status(403).json({ message: "Access denied" });
 
-        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role } = req.body;
+        const { fullname, email, password, designation, job_title, department, phone, date_of_joining, employee_id, profile_picture, status, role, gender } = req.body;
 
         if (!fullname || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
@@ -222,7 +226,8 @@ export const addUser = async (req, res) => {
             employee_id,
             profile_picture,
             status,
-            role || 'Employee'
+            role || 'Employee',
+            gender || 'Not Specified'
         );
 
         res.status(201).json({

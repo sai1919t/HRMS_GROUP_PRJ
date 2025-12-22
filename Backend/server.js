@@ -245,14 +245,14 @@ app.delete("/api/meetings/:id", async (req, res) => {
 app.put("/api/users/profile/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { fullname, email, designation, profile_picture } = req.body;
+        const { fullname, email, designation, profile_picture, gender } = req.body;
 
         // Basic validation
         if (!fullname || !email) {
             return res.status(400).json({ error: "Name and Email are required" });
         }
 
-        const updatedUser = await updateUserProfile(id, fullname, email, designation, profile_picture);
+        const updatedUser = await updateUserProfile(id, fullname, email, designation, profile_picture, gender);
 
         if (!updatedUser) {
             return res.status(404).json({ error: "User not found" });

@@ -68,22 +68,24 @@ export const createUser = async (
 };
 
 export const updateUserProfile = async (id, fullname, email, designation, profile_picture, gender) => {
+  // Properly order SQL parameters. When profile_picture is not provided, gender should be $4 and id $5.
   let query = `
         UPDATE users 
-        SET fullname = $1, email = $2, designation = $3, gender = $5
-        WHERE id = $4
+        SET fullname = $1, email = $2, designation = $3, gender = $4
+        WHERE id = $5
         RETURNING *;
     `;
-  let values = [fullname, email, designation, id, gender];
+  let values = [fullname, email, designation, gender, id];
 
   if (profile_picture) {
+    // When profile_picture is provided, profile_picture is $4, gender $5 and id $6
     query = `
             UPDATE users 
-            SET fullname = $1, email = $2, designation = $3, profile_picture = $4, gender = $6
-            WHERE id = $5
+            SET fullname = $1, email = $2, designation = $3, profile_picture = $4, gender = $5
+            WHERE id = $6
             RETURNING *;
         `;
-    values = [fullname, email, designation, profile_picture, id, gender];
+    values = [fullname, email, designation, profile_picture, gender, id];
   }
 
   const { rows } = await pool.query(query, values);
@@ -136,14 +138,14 @@ export const updateUser = async (id, updates) => {
     return user;
   }
 
-  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, created_at`;
+  const query = `UPDATE users SET ${setClauses.join(", ")} WHERE id = $${idx} RETURNING id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, gender, role, created_at`;
   values.push(id);
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
 
 export const getAllUsers = async () => {
-  const query = `SELECT id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, points, created_at FROM users ORDER BY points DESC, fullname`;
+  const query = `SELECT id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, gender, points, role, created_at FROM users ORDER BY points DESC, fullname`;
   const { rows } = await pool.query(query);
   return rows;
 };

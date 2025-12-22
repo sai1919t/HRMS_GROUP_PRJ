@@ -13,7 +13,8 @@ export const createUserService = async (
     employee_id = '',
     profile_picture = '',
     status = 'ACTIVE',
-    role = 'Employee'
+    role = 'Employee',
+    gender = 'Not Specified'
 ) => {
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
@@ -33,7 +34,8 @@ export const createUserService = async (
         employee_id,
         profile_picture,
         status,
-        role
+        role,
+        gender
     );
 
     return newUser;
