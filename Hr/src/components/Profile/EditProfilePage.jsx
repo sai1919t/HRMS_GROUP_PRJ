@@ -13,6 +13,7 @@ const EditProfilePage = ({ onCancel, onSave }) => {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [designation, setDesignation] = useState('');
+    const [gender, setGender] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -29,6 +30,7 @@ const EditProfilePage = ({ onCancel, onSave }) => {
         setLastName(parts.slice(1).join(' ') || '');
         setEmail(storedUser?.email || '');
         setDesignation(storedUser?.designation || '');
+        setGender(storedUser?.gender || '');
         // Use profile_picture if available, otherwise null
         setPreviewUrl(storedUser?.profile_picture || null);
     }, [storedUser]);
@@ -87,6 +89,7 @@ const EditProfilePage = ({ onCancel, onSave }) => {
         formData.append('fullname', fullname);
         formData.append('email', email);
         formData.append('designation', designation);
+        formData.append('gender', gender || 'Not Specified');
 
         if (isRemovingPhoto) {
             formData.append('profile_picture', ""); // Send empty string to remove it
@@ -203,6 +206,16 @@ const EditProfilePage = ({ onCancel, onSave }) => {
                             <option value="Manager">Manager</option>
                             <option value="Designer">Designer</option>
                             <option value="Intern">Intern</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">Gender</label>
+                        <select value={gender} onChange={(e) => setGender(e.target.value)} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#266ECD] focus:border-transparent">
+                            <option value="">Prefer not to say</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>

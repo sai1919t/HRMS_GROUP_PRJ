@@ -88,8 +88,7 @@ const SignUp = () => {
             phone: phone,
             date_of_joining: dateOfJoining || null,
             employee_id: employeeId,
-            profile_picture: uploadedPath,
-            status: "ACTIVE"
+            profile_picture: uploadedPath,            gender: gender || 'Not Specified',            status: "ACTIVE"
           }),
         });
 
