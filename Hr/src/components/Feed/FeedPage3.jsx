@@ -366,7 +366,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                                             <div className="flex-1 pb-2">
                                                 <div className="flex justify-between items-start mb-1">
                                                     <p className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{ev.title}</p>
-                                                    <span className="text-xs font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}</span>
+                                                    <span className="text-xs font-bold text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{`${ev.attendee_count ?? 0} attending`}</span>
                                                 </div>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1">
                                                     <Clock size={10} />

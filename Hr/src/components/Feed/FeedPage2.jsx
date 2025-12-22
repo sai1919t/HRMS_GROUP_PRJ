@@ -534,7 +534,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                                     <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
                                                     <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
                                                 </div>
-                                                <span className="text-sm font-bold text-gray-900">{new Date(ev.event_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                                <span className="text-sm font-bold text-gray-900">{`${ev.attendee_count ?? 0} attending`}</span>
                                             </div>
                                         ))
                                 )}

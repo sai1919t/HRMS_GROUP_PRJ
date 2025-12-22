@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllEvents, createEvent as createEventAPI, registerForEvent, deleteEvent as deleteEventAPI } from '../services/event.service';
+import { getAllEvents, createEvent as createEventAPI, registerForEvent, deleteEvent as deleteEventAPI, getUserEvents } from '../services/event.service';
 
 const ProfessionalEventsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -38,6 +38,37 @@ const ProfessionalEventsPage = () => {
       setCurrentUser(user);
     }
   }, []);
+
+  // Load events the current user has joined (so registrations persist across refresh)
+  const fetchAndMergeUserEvents = async () => {
+    try {
+      const res = await getUserEvents();
+      const evs = Array.isArray(res) ? res : (res.events || res.data || []);
+      const ids = (evs || []).map(e => e.id).filter(Boolean);
+      // also include any locally stored joined events (fallback if server call misses it)
+      const local = JSON.parse(localStorage.getItem('joinedEvents') || '[]');
+      const merged = Array.from(new Set([...(ids || []), ...(Array.isArray(local) ? local : [])]));
+      setJoinedEvents(merged);
+      localStorage.setItem('joinedEvents', JSON.stringify(merged));
+    } catch (err) {
+      console.warn('Failed to load user events', err);
+      // fallback to local storage if server fails
+      const local = JSON.parse(localStorage.getItem('joinedEvents') || '[]');
+      if (Array.isArray(local) && local.length) setJoinedEvents(local);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      fetchAndMergeUserEvents();
+    }
+
+    const onEventsUpdated = () => {
+      if (currentUser && currentUser.id) fetchAndMergeUserEvents();
+    };
+    window.addEventListener('events:updated', onEventsUpdated);
+    return () => window.removeEventListener('events:updated', onEventsUpdated);
+  }, [currentUser]);
 
   // Fetch events from backend
   const [professionalEvents, setProfessionalEvents] = useState([]);
@@ -81,19 +112,29 @@ const ProfessionalEventsPage = () => {
 
   const handleJoinSubmit = async (e) => {
     e.preventDefault();
-    if (selectedEvent) {
-      try {
-        await registerForEvent(selectedEvent.id, "Confirmed");
-        setJoinedEvents([...joinedEvents, selectedEvent.id]);
-        alert(`Successfully registered for: ${selectedEvent.title}\n\nWe've sent confirmation to ${joinForm.email}`);
-        setShowJoinModal(false);
-        setJoinForm({ name: '', email: '', company: '', position: '' });
-        // Refresh events to get updated attendee count
-        fetchEvents();
-        try { window.dispatchEvent(new CustomEvent('events:updated')); } catch(e) {}
-      } catch (error) {
-        alert(`Failed to register: ${error.message}`);
-      }
+    if (!selectedEvent) return;
+
+    if (isEventJoined(selectedEvent.id)) {
+      alert('You are already registered for this event');
+      setShowJoinModal(false);
+      return;
+    }
+
+    try {
+      await registerForEvent(selectedEvent.id, "Confirmed");
+      setJoinedEvents(prev => {
+        const next = Array.from(new Set([...(prev || []), selectedEvent.id]));
+        try { localStorage.setItem('joinedEvents', JSON.stringify(next)); } catch(e) {}
+        return next;
+      });
+      alert(`Successfully registered for: ${selectedEvent.title}\n\nWe've sent confirmation to ${joinForm.email}`);
+      setShowJoinModal(false);
+      setJoinForm({ name: '', email: '', company: '', position: '' });
+      // Refresh events to get updated attendee count
+      fetchEvents();
+      try { window.dispatchEvent(new CustomEvent('events:updated')); } catch(e) {}
+    } catch (error) {
+      alert(`Failed to register: ${error.message}`);
     }
   };
 
