@@ -23,10 +23,10 @@ export default function RecruitmentLayout() {
           </h1>
 
           <div className="flex gap-8">
-            <NavLink to="" end className={getLinkClass}>Jobs</NavLink>
-            <NavLink to="applications" className={getLinkClass}>Applications</NavLink>
-            <NavLink to="interviews" className={getLinkClass}>Interviews</NavLink>
-            <NavLink to="offers" className={getLinkClass}>Offers</NavLink>
+            <NavLink to="/recruitment" end className={getLinkClass}>Jobs</NavLink>
+            <NavLink to="/recruitment/applications" className={getLinkClass}>Applications</NavLink>
+            <NavLink to="/recruitment/interviews" className={getLinkClass}>Interviews</NavLink>
+            <NavLink to="/recruitment/offers" className={getLinkClass}>Offers</NavLink>
           </div>
         </div>
       </div>
