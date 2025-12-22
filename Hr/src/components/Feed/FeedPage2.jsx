@@ -394,7 +394,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                         </button>
                                         {(() => {
                                             const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                                            if (currentUser && currentUser.id && currentUser.id === appreciation.sender_id) {
+                                            if (currentUser && currentUser.id && (currentUser.id === appreciation.sender_id || currentUser.role === 'Admin')) {
                                                 return (
                                                     <button
                                                         onClick={() => handleDelete(appreciation.id)}
@@ -408,7 +408,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                                 );
                                             }
                                             return null;
-                                        })()}
+                                        })()} 
                                     </div>
 
                                     {/* Comments Section */}

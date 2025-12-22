@@ -154,7 +154,8 @@ export const deleteAppreciationController = async (req, res) => {
             });
         }
 
-        if (appreciation.sender_id !== userId) {
+        // Allow deletion if the requester is the sender OR an Admin
+        if (appreciation.sender_id !== userId && req.user.role !== 'Admin') {
             return res.status(403).json({
                 success: false,
                 message: "You are not authorized to delete this appreciation"

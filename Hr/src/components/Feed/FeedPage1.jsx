@@ -436,10 +436,10 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             <p className="text-sm text-gray-500">{new Date(appreciation.created_at).toLocaleDateString()}</p>
                         </div>
                     </div>
-                    {/* Delete Button - only visible to the user who created the post */}
+                    {/* Delete Button - visible to the sender or Admin */}
                     {(() => {
                         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                        if (currentUser && currentUser.id && currentUser.id === appreciation.sender_id) {
+                        if (currentUser && currentUser.id && (currentUser.id === appreciation.sender_id || currentUser.role === 'Admin')) {
                             return (
                                 <button
                                     onClick={onDelete}
@@ -453,7 +453,7 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             );
                         }
                         return null;
-                    })()}
+                    })()} 
                 </div>
 
                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
