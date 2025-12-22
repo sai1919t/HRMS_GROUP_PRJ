@@ -33,7 +33,7 @@ function Sidebar() {
     { name: "Feed", path: "/feed" },
     { name: "Recognition", path: "/recognition" },
     { name: "Event", path: "/event" },
-    // { name: "Recruitment", path: "/recruitment" },
+    { name: "Recruitment", path: "/recruitment" },
     { name: "Profile", path: "/profile" },
     { name: "Settings", path: "/settings" },
 

@@ -32,8 +32,32 @@ export const createJob = (data) => {
 };
 
 // Get all jobs
-export const getJobs = () => {
-  return pool.query("SELECT * FROM jobs ORDER BY created_at DESC");
+export const getJobs = ({ search, location, experience, limit = 50, offset = 0, order = 'created_at', dir = 'DESC' } = {}) => {
+  const conditions = [];
+  const params = [];
+
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`(title ILIKE $${params.length} OR description ILIKE $${params.length})`);
+  }
+
+  if (location) {
+    params.push(location);
+    conditions.push(`location = $${params.length}`);
+  }
+
+  if (experience) {
+    params.push(experience);
+    conditions.push(`experience = $${params.length}`);
+  }
+
+  params.push(limit);
+  params.push(offset);
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const query = `SELECT * FROM jobs ${where} ORDER BY ${order} ${dir} LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+  return pool.query(query, params);
 };
 
 // Delete job

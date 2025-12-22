@@ -14,8 +14,38 @@ export const applyJob = async (req, res) => {
 };
 // Get all applications
 export const getApplications = async (req, res) => {
-  const result = await pool.query("SELECT * FROM applications");
-  res.json(result.rows);
+  try {
+    const { jobId, status, search, limit = 50, offset = 0 } = req.query;
+    const conditions = [];
+    const params = [];
+
+    if (jobId) {
+      params.push(jobId);
+      conditions.push(`job_id = $${params.length}`);
+    }
+
+    if (status) {
+      params.push(status);
+      conditions.push(`status = $${params.length}`);
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR resume ILIKE $${params.length})`);
+    }
+
+    params.push(limit);
+    params.push(offset);
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const query = `SELECT * FROM applications ${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch applications' });
+  }
 };
 // Update application status
 export const updateStatus = async (req, res) => {

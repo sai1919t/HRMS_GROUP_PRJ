@@ -15,12 +15,13 @@ export default function Jobs() {
     experience: "",
     salary: "",
   });
+  const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (opts = {}) => {
     try {
-      const res = await axios.get("http://localhost:3000/api/jobs");
+      const res = await axios.get("http://localhost:3000/api/jobs", { params: opts });
       setJobs(res.data);
     } catch (err) {
       console.error(err);
@@ -35,8 +36,18 @@ export default function Jobs() {
       const user = JSON.parse(userStr);
       setIsAdmin(user.role === 'Admin');
     }
-    fetchJobs();
+    fetchJobs({ search });
   }, []);
+
+  // debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(true);
+      fetchJobs({ search });
+    }, 350);
+
+    return () => clearTimeout(t);
+  }, [search]);
 
   const submitJob = async (e) => {
     e.preventDefault();
@@ -68,6 +79,14 @@ export default function Jobs() {
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fadeIn">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Recruitment</h1>
+        <div className="ml-4">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search jobs..."
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none"
+          />
+        </div>
       </div>
 
       {/* Create Job */}
