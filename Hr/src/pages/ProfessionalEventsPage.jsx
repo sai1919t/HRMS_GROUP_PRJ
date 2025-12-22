@@ -422,26 +422,32 @@ const ProfessionalEventsPage = () => {
                   )}
                 </div>
 
-                {/* Tab Navigation */}
+                {/* Tab Navigation (with counts) */}
                 <div className="mb-6 border-b border-gray-200">
                   <nav className="-mb-px flex space-x-8 overflow-x-auto">
-                    {['all', 'upcoming', 'past'].map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === tab
-                          ? 'border-blue-600 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
-                      >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        {tab !== 'all' && (
+                    {(() => {
+                      const counts = {
+                        all: professionalEvents.length,
+                        upcoming: professionalEvents.filter(e => getEventCategory(e.event_date) === 'upcoming').length,
+                        past: professionalEvents.filter(e => getEventCategory(e.event_date) === 'past').length,
+                      };
+
+                      return ['all', 'upcoming', 'past'].map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === tab
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
                           <span className="ml-2 bg-gray-100 text-gray-700 py-0.5 px-2 rounded-full text-xs">
-                            {professionalEvents.filter(e => e.category === tab).length}
+                            {counts[tab]}
                           </span>
-                        )}
-                      </button>
-                    ))}
+                        </button>
+                      ));
+                    })()}
                   </nav>
                 </div>
 
