@@ -12,6 +12,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
     const [error, setError] = useState(null);
 
     const [isAdmin, setIsAdmin] = useState(false);
+    const [userPoints, setUserPoints] = useState(0);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -20,6 +21,28 @@ const FeedPage3 = ({ onNavigateBack }) => {
         month: '',
         teamMembers: [{ userId: '', role: '' }]
     });
+
+    // Fetch user points and refresh on activity updates
+    useEffect(() => {
+        const fetchUserPoints = async () => {
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                if (!u || !u.id) return;
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}/api/users/${u.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                setUserPoints(data.user?.points || 0);
+                if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+            } catch (err) {
+                console.error('Failed to fetch user points', err);
+            }
+        };
+        fetchUserPoints();
+        const onActivity = () => fetchUserPoints();
+        window.addEventListener('activity:updated', onActivity);
+        return () => window.removeEventListener('activity:updated', onActivity);
+    }, []);
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
@@ -333,7 +356,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                             <div className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-md">NEW</div>
                         </div>
                         <div className="flex items-end gap-2 mb-4">
-                            <span className="text-4xl font-bold text-[#020839]">250</span>
+                            <span className="text-4xl font-bold text-[#020839]">{userPoints?.toLocaleString() || 0}</span>
                             <span className="text-sm text-gray-400 font-medium mb-1">pts available</span>
                         </div>
                         <button className="w-full bg-[#020839] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all">
@@ -378,7 +401,7 @@ const FeedPage3 = ({ onNavigateBack }) => {
                             )}
                         </div>
                         <Link to="/event" className="w-full mt-4 text-xs font-bold text-gray-400 hover:text-[#020839] flex items-center justify-center gap-1 uppercase tracking-wide transition-colors">
-                            View Calendar <ChevronRight size={12} />
+                            View Events <ChevronRight size={12} />
                         </Link>
                     </div>
                 </div>
