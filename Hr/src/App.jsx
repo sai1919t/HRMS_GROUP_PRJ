@@ -83,7 +83,7 @@ function App() {
           <Route path='/profile/exit' element={<ProtectedRoute><Layout><ProfileExit /></Layout></ProtectedRoute>} />
           <Route path='/profile/referrals' element={<ProtectedRoute><Layout><ProfileReferrals /></Layout></ProtectedRoute>} />
 
-          <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
+          {/* <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} /> */}
         </Routes>
       </div>
     </>
