@@ -72,45 +72,6 @@ export default function Interviews() {
 
   return (
     <div>
-      <div className="px-8 pt-6">
-        <h1 className="text-2xl font-bold text-[#020839] mb-4">Recruitment</h1>
-        <div className="flex gap-8">
-          <a
-            aria-current="page"
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-[#020839] text-[#020839]"
-            href="/recruitment"
-            data-discover="true"
-          >
-            Jobs
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/applications"
-            data-discover="true"
-          >
-            Applications
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/interviews"
-            data-discover="true"
-          >
-            Interviews
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/offers"
-            data-discover="true"
-          >
-            Offers
-          </a>
-        </div>
-      </div>
-
       {/* CONTENT */}
       <div className="px-8 mt-10 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* LEFT: FORM */}

@@ -2,15 +2,22 @@ import pool from "../db/db.js";
 
 // Apply for a job
 export const applyJob = async (req, res) => {
-  const { name, email, resume } = req.body;
-  const job_id = req.params.id;
+  try {
+    const job_id = req.params.id;
+    const { name, email, coverLetter } = req.body;
+    // if file uploaded, multer will attach it as req.file
+    const resumeFilename = req.file ? req.file.filename : req.body.resume;
 
-  const result = await pool.query(
-    "INSERT INTO applications (job_id, name, email, resume) VALUES ($1,$2,$3,$4) RETURNING *",
-    [job_id, name, email, resume]
-  );
+    const result = await pool.query(
+      "INSERT INTO applications (job_id, name, email, resume) VALUES ($1,$2,$3,$4) RETURNING *",
+      [job_id, name, email, resumeFilename]
+    );
 
-  res.status(201).json(result.rows[0]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Apply job error', err);
+    res.status(500).json({ message: 'Application failed' });
+  }
 };
 // Get all applications
 export const getApplications = async (req, res) => {

@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button";
 import { Table, TableHeader, TableRow, TableHead, TableCell } from "../../components/ui/Table";
 import Skeleton from "../../components/ui/Skeleton";
 import EmptyState from "../../components/ui/EmptyState";
+import { Fragment } from "react";
 
 export default function Jobs() {
   const [jobs, setJobs] = useState([]);
@@ -16,6 +17,11 @@ export default function Jobs() {
     salary: "",
   });
   const [search, setSearch] = useState("");
+  const [showApply, setShowApply] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [applicant, setApplicant] = useState({ name: "", email: "", coverLetter: "" });
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumePreview, setResumePreview] = useState(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -54,6 +60,52 @@ export default function Jobs() {
     await axios.post("http://localhost:3000/api/jobs", form);
     setForm({ title: "", location: "", experience: "", salary: "" });
     fetchJobs();
+  };
+
+  const openApply = (job) => {
+    setSelectedJob(job);
+    setShowApply(true);
+  };
+
+  const closeApply = () => {
+    setShowApply(false);
+    setSelectedJob(null);
+    setApplicant({ name: "", email: "", coverLetter: "" });
+    setResumeFile(null);
+    setResumePreview(null);
+  };
+
+  const onResumeChange = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setResumeFile(f);
+    try {
+      const url = URL.createObjectURL(f);
+      setResumePreview(url);
+    } catch (e) {
+      setResumePreview(null);
+    }
+  };
+
+  const submitApplication = async (e) => {
+    e.preventDefault();
+    if (!selectedJob) return;
+    const fd = new FormData();
+    fd.append('name', applicant.name);
+    fd.append('email', applicant.email);
+    fd.append('coverLetter', applicant.coverLetter);
+    if (resumeFile) fd.append('resume', resumeFile);
+
+    try {
+      await axios.post(`http://localhost:3000/api/jobs/${selectedJob.id}/apply`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      closeApply();
+      alert('Application submitted');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to submit application');
+    }
   };
 
   // ✅ DELETE JOB
@@ -192,22 +244,65 @@ export default function Jobs() {
                   <TableCell>{job.location}</TableCell>
                   <TableCell>{job.experience}</TableCell>
                   <TableCell>{job.salary}</TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
+                  <TableCell className="text-right">
+                    {isAdmin ? (
                       <button
                         onClick={() => deleteJob(job.id)}
                         className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors"
                       >
                         Delete
                       </button>
-                    </TableCell>
-                  )}
+                    ) : (
+                      <button
+                        onClick={() => openApply(job)}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors"
+                      >
+                        Apply
+                      </button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </tbody>
           </Table>
         )}
       </div>
-    </div>
+
+      {/* Apply Modal */}
+      {showApply && selectedJob && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Apply for {selectedJob.title}</h3>
+              <button onClick={closeApply} className="text-gray-500">Close</button>
+            </div>
+
+            <form onSubmit={submitApplication} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input required placeholder="Full name" value={applicant.name} onChange={(e)=>setApplicant({...applicant,name:e.target.value})} className="px-3 py-2 border rounded" />
+                <input required placeholder="Email" value={applicant.email} onChange={(e)=>setApplicant({...applicant,email:e.target.value})} className="px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Resume (PDF/DOC)</label>
+                <input type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onResumeChange} className="block mt-2" />
+                {resumePreview && (
+                  <div className="mt-3 border p-2">
+                    <iframe title="resume-preview" src={resumePreview} className="w-full h-64" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium">Cover Letter</label>
+                <textarea value={applicant.coverLetter} onChange={(e)=>setApplicant({...applicant,coverLetter:e.target.value})} className="w-full mt-2 border rounded p-2" rows={4} />
+              </div>
+
+              <div className="flex justify-end">
+                <button type="submit" className="px-4 py-2 bg-[#020839] text-white rounded">Submit Application</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      </div>
   );
 }
