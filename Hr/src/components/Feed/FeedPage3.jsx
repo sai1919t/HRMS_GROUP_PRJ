@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import * as employeeOfMonthService from '../../services/employeeOfMonthService';
-import { Calendar, Clock, Trophy, Users, Plus, X, Trash2, Award, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Trophy, Users, Plus, X, Trash2, Award, ChevronRight, ArrowLeft } from 'lucide-react';
 import { getAllEvents } from '../../services/event.service';
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const FeedPage3 = ({ onNavigateBack }) => {
     const [employeeData, setEmployeeData] = useState(null);
@@ -43,6 +43,13 @@ const FeedPage3 = ({ onNavigateBack }) => {
         window.addEventListener('activity:updated', onActivity);
         return () => window.removeEventListener('activity:updated', onActivity);
     }, []);
+
+    const navigate = useNavigate();
+
+    const handleBack = () => {
+        if (onNavigateBack && typeof onNavigateBack === 'function') onNavigateBack();
+        navigate(-1);
+    };
 
     useEffect(() => {
         const userStr = localStorage.getItem("user");
@@ -212,9 +219,14 @@ const FeedPage3 = ({ onNavigateBack }) => {
         <div className="p-6 sm:p-10 max-w-[1600px] mx-auto min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between mb-10">
-                <div>
-                    <h1 className="text-3xl font-bold text-[#020839] tracking-tight">Feed & Recognition</h1>
-                    <p className="text-gray-500 mt-1">Celebrate success and stay updated with the team.</p>
+                <div className="flex items-center gap-4">
+                    <button onClick={handleBack} className="text-gray-500 hover:text-gray-700 p-2 rounded-lg" aria-label="Go back">
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-[#020839] tracking-tight">Feed & Recognition</h1>
+                        <p className="text-gray-500 mt-1">Celebrate success and stay updated with the team.</p>
+                    </div>
                 </div>
                 {isAdmin && (
                     <button
@@ -359,9 +371,9 @@ const FeedPage3 = ({ onNavigateBack }) => {
                             <span className="text-4xl font-bold text-[#020839]">{userPoints?.toLocaleString() || 0}</span>
                             <span className="text-sm text-gray-400 font-medium mb-1">pts available</span>
                         </div>
-                        <button className="w-full bg-[#020839] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all">
+                        <Link to="/redemption" className="w-full block bg-[#020839] text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-opacity-90 transition-all text-center">
                             Redeem Rewards
-                        </button>
+                        </Link>
                     </div>
 
                     {/* Upcoming Events (dynamic) */}
