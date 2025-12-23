@@ -3,9 +3,13 @@ import { generateOfferPDF } from "../utils/generateOfferPdf.js";
 import path from "path";
 import fs from "fs";
 
-// Create a new offer letter
+// Create a new offer letter (Admin only)
 export const createOffer = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
+
     const { application_id, position, ctc, joining_date } = req.body;
     const appRes = await pool.query(
       "SELECT name FROM applications WHERE id=$1",
@@ -82,9 +86,13 @@ export const getOffers = async (req, res) => {
   }
 };
 
-// Update offer status
+// Update offer status (Admin only)
 export const updateOfferStatus = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
+
     const { status } = req.body;
     const { id } = req.params;
 

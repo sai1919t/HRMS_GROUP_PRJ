@@ -54,15 +54,24 @@ export const getApplications = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch applications' });
   }
 };
-// Update application status
+// Update application status (Admin only)
 export const updateStatus = async (req, res) => {
-  const { status } = req.body;
-  const { id } = req.params;
+  try {
+    if (!req.user || req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
 
-  await pool.query(
-    "UPDATE applications SET status=$1 WHERE id=$2",
-    [status, id]
-  );
+    const { status } = req.body;
+    const { id } = req.params;
 
-  res.json({ message: "Status updated" });
+    await pool.query(
+      "UPDATE applications SET status=$1 WHERE id=$2",
+      [status, id]
+    );
+
+    res.json({ message: "Status updated" });
+  } catch (err) {
+    console.error('Update status error', err);
+    res.status(500).json({ message: 'Failed to update status' });
+  }
 };

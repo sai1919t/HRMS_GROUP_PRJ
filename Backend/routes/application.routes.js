@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import { applyJob, getApplications, updateStatus } from "../controller/application.controller.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -21,6 +22,6 @@ const upload = multer({ storage });
 // Accept multipart form with `resume` file field
 router.post("/jobs/:id/apply", upload.single('resume'), applyJob);
 router.get("/applications", getApplications);
-router.patch("/applications/:id/status", updateStatus);
+router.patch("/applications/:id/status", authMiddleware, updateStatus);
 
 export default router;

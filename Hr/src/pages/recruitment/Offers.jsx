@@ -3,6 +3,8 @@ import axios from "axios";
 export default function Offers() {
   const [candidates, setCandidates] = useState([]);
   const [offers, setOffers] = useState([]);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token');
   const [form, setForm] = useState({
     application_id: "",
     position: "",
@@ -28,10 +30,16 @@ export default function Offers() {
 
   const createOffer = async (e) => {
     e.preventDefault();
+
+    if (!user || user.role !== 'Admin') {
+      alert('Only admins can create offers');
+      return;
+    }
+
     await axios.post("http://localhost:3000/api/offers", {
         ...form,
         status: "Pending" 
-    });
+    }, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
     setForm({ application_id: "", position: "", ctc: "", joining_date: "" });
     fetchData();
   };
@@ -46,7 +54,8 @@ export default function Offers() {
         <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="font-semibold text-lg mb-4 text-gray-800">Generate Offer</h2>
-                <form onSubmit={createOffer} className="space-y-4">
+                {user && user.role === 'Admin' ? (
+                  <form onSubmit={createOffer} className="space-y-4">
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Select Candidate</label>
                         <select 
@@ -76,7 +85,10 @@ export default function Offers() {
                             value={form.joining_date} onChange={e => setForm({...form, joining_date: e.target.value})} required />
                     </div>
                     <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm transition">Generate & Send Offer</button>
-                </form>
+                  </form>
+                ) : (
+                  <div className="text-gray-600">Only Admins can create offers. You can view offers below.</div>
+                )}
             </div>
         </div>
 

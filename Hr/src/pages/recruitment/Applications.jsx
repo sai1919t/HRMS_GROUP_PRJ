@@ -3,6 +3,8 @@ import axios from "axios";
 
 export default function Applications() {
   const [applications, setApplications] = useState([]);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token');
 
   const fetchApplications = async () => {
     // Mocking response for demo if API fails, otherwise use your API
@@ -20,8 +22,8 @@ export default function Applications() {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`http://localhost:3000/api/applications/${id}/status`, {
-        status,
+      await axios.patch(`http://localhost:3000/api/applications/${id}/status`, { status }, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       fetchApplications();
     } catch (e) {
@@ -91,16 +93,20 @@ export default function Applications() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <select
-                      value={app.status}
-                      onChange={(e) => updateStatus(app.id, e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-[#020839]"
-                    >
-                      <option value="APPLIED">Applied</option>
-                      <option value="INTERVIEW">Interview</option>
-                      <option value="SELECTED">Selected</option>
-                      <option value="REJECTED">Rejected</option>
-                    </select>
+                    {user && user.role === 'Admin' ? (
+                      <select
+                        value={app.status}
+                        onChange={(e) => updateStatus(app.id, e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-[#020839]"
+                      >
+                        <option value="APPLIED">Applied</option>
+                        <option value="INTERVIEW">Interview</option>
+                        <option value="SELECTED">Selected</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    ) : (
+                      <div className="text-sm text-gray-600">{app.status}</div>
+                    )}
                   </td>
                 </tr>
               ))}
