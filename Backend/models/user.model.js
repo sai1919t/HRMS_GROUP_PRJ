@@ -36,6 +36,8 @@ export const createUserTable = async () => {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'Not Specified'`);
+    // Add resigned_at timestamp to track monthly attrition
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS resigned_at TIMESTAMP`);
     console.log("✅ Users table created/updated successfully");
   } catch (error) {
     console.error("❌ Error creating users table:", error);

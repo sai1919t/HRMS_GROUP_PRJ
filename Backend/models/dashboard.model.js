@@ -60,9 +60,47 @@ const seedDashboardStats = async () => {
     }
 };
 
-// Get all stats
+// Get all stats — compute dynamically per month (current year)
 export const getDashboardStats = async () => {
-    return pool.query("SELECT * FROM dashboard_stats ORDER BY id ASC");
+    try {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const year = new Date().getFullYear();
+        const results = [];
+
+        for (let m = 1; m <= 12; m++) {
+            // hires: count offer_letters with joining_date in the month/year
+            const hiresRes = await pool.query(
+                `SELECT COUNT(*) FROM offer_letters WHERE joining_date IS NOT NULL AND EXTRACT(MONTH FROM joining_date) = $1 AND EXTRACT(YEAR FROM joining_date) = $2`,
+                [m, year]
+            );
+
+            // job_applied: count applications created in month/year
+            const appliedRes = await pool.query(
+                `SELECT COUNT(*) FROM applications WHERE EXTRACT(MONTH FROM created_at) = $1 AND EXTRACT(YEAR FROM created_at) = $2`,
+                [m, year]
+            );
+
+            // attrition: count users with resigned_at in the month/year
+            const attrRes = await pool.query(
+                `SELECT COUNT(*) FROM users WHERE resigned_at IS NOT NULL AND EXTRACT(MONTH FROM resigned_at) = $1 AND EXTRACT(YEAR FROM resigned_at) = $2`,
+                [m, year]
+            );
+
+            results.push({
+                month: months[m-1],
+                year,
+                hires: parseInt(hiresRes.rows[0].count, 10) || 0,
+                attrition: parseInt(attrRes.rows[0].count, 10) || 0,
+                job_views: 0, // not tracked yet
+                job_applied: parseInt(appliedRes.rows[0].count, 10) || 0
+            });
+        }
+
+        return { rows: results };
+    } catch (error) {
+        console.error('Error computing dynamic dashboard stats', error);
+        throw error;
+    }
 };
 
 export const getOverviewStats = async () => {

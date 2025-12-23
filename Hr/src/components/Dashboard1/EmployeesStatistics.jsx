@@ -23,24 +23,38 @@ export default function HiringStatsChart() {
 
   const fetchData = async () => {
     try {
-      // Using axios direct call or we could make a service. Direct for now.
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const baseUrl = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
       const token = localStorage.getItem('token');
       const res = await axios.get(`${baseUrl}/api/dashboard/stats`, {
         headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
 
-      if (res.data.success) {
-        // Calculate growth if needed, or mapping. 
-        // Backend sends: month, hires, attrition, job_views, job_applied
-        const mappedData = res.data.data.map(item => ({
-          ...item,
-          growth: item.hires - item.attrition
-        }));
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        const rows = res.data.data;
+        const mappedData = months.map(m => {
+          const item = rows.find(r => String(r.month) === m) || {};
+          const hires = Number(item.hires || 0);
+          const attrition = Number(item.attrition || 0);
+          const job_applied = Number(item.job_applied || 0);
+          return {
+            month: m,
+            hires,
+            attrition,
+            job_applied,
+            growth: hires - attrition
+          };
+        });
         setData(mappedData);
+      } else {
+        // No data or unexpected shape: initialize zeroed months
+        const zeroData = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m => ({ month: m, hires:0, attrition:0, job_applied:0, growth:0 }));
+        setData(zeroData);
       }
     } catch (err) {
       console.error("Failed to fetch dashboard stats", err);
+      const zeroData = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m => ({ month: m, hires:0, attrition:0, job_applied:0, growth:0 }));
+      setData(zeroData);
     } finally {
       setLoading(false);
     }
@@ -55,69 +69,88 @@ export default function HiringStatsChart() {
         <p className="text-sm text-gray-500">Overview of employee movement and recruitment activity</p>
       </div>
 
-      {mounted && !loading && (
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
-            <CartesianGrid stroke="#E6E6E6" strokeDasharray="3 3" />
+      {loading ? (
+        <div className="p-6 text-center text-gray-500">Loading dashboard stats…</div>
+      ) : (() => {
+        const hasData = data && data.some(d => d.hires || d.attrition || d.job_applied);
+        if (!hasData) {
+          return <div className="p-6 text-center text-gray-500">No hiring data available for the current year.</div>;
+        }
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data}>
+              <CartesianGrid stroke="#E6E6E6" strokeDasharray="3 3" />
 
-            <XAxis
-              dataKey="month"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-              dy={10}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: '#6b7280', fontSize: 12 }}
-            />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+              />
 
-            <Tooltip
-              contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-              itemStyle={{ fontSize: '12px' }}
-            />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                itemStyle={{ fontSize: '12px' }}
+              />
 
-            <Legend
-              wrapperStyle={{ paddingTop: '30px', paddingBottom: '10px' }}
-              iconType="circle"
-              align="center"
-              verticalAlign="bottom"
-            />
+              <Legend
+                wrapperStyle={{ paddingTop: '30px', paddingBottom: '10px' }}
+                iconType="circle"
+                align="center"
+                verticalAlign="bottom"
+              />
 
-            <Line
-              type="monotone"
-              dataKey="hires"
-              stroke="#2563eb" // Blue-600
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 6 }}
-              name="New Hires"
-            />
+              <Line
+                type="monotone"
+                dataKey="hires"
+                stroke="#2563eb" // Blue-600
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6 }}
+                name="New Hires"
+              />
 
-            <Line
-              type="monotone"
-              dataKey="attrition"
-              stroke="#ef4444" // Red-500
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 6 }}
-              name="Attrition"
-            />
+              <Line
+                type="monotone"
+                dataKey="attrition"
+                stroke="#ef4444" // Red-500
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6 }}
+                name="Attrition"
+              />
 
-            <Line
-              type="monotone"
-              dataKey="growth"
-              stroke="#10b981" // Green-500
-              strokeWidth={3}
-              dot={false}
-              activeDot={{ r: 6 }}
-              name="Net Growth"
-            />
+              <Line
+                type="monotone"
+                dataKey="job_applied"
+                stroke="#f59e0b" // Amber-500
+                strokeWidth={2}
+                dot={false}
+                strokeDasharray="4 4"
+                activeDot={{ r: 4 }}
+                name="Applications"
+              />
 
-          </LineChart>
-        </ResponsiveContainer>
-      )}
+              <Line
+                type="monotone"
+                dataKey="growth"
+                stroke="#10b981" // Green-500
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6 }}
+                name="Net Growth"
+              />
+
+            </LineChart>
+          </ResponsiveContainer>
+        );
+      })()}
     </div>
   );
 }
