@@ -1,36 +1,86 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// import { motion } from "framer-motion";
 
 const STORAGE_PREFIX = 'settings:contact:';
+const contactInfo = [
+    {
+      title: 'Email',
+      text: 'xyz@example.com',
+      svg: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6.5C3 5.67 3.67 5 4.5 5h15c.83 0 1.5.67 1.5 1.5v11c0 .83-.67 1.5-1.5 1.5h-15A1.5 1.5 0 013 17.5v-11z" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M21 6l-9 6L3 6" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      title: 'Phone',
+      text: '+91 6234567890',
+      svg: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"> 
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.86 19.86 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.86 19.86 0 01-3.07-8.63A2 2 0 014.11 2h3a2 2 0 012 1.72c.12 1.2.38 2.37.78 3.47a2 2 0 01-.45 2.11L9.91 11.09a16 16 0 006 6l1.79-1.79a2 2 0 012.11-.45c1.1.4 2.27.66 3.47.78A2 2 0 0122 16.92z" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      title: 'LinkedIn',
+      text: 'uptoskills/profile',
+      svg: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"> 
+          <path d="M16 8a6 6 0 016 6v6h-4v-6a2 2 0 00-4 0v6h-4v-12h4v2" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M2 9h4v12H2z" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="4" cy="4" r="2" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      title: 'Location',
+      text: 'New Delhi, India',
+      svg: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1118 0z" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="12" cy="10" r="2.5" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      title: 'Industry',
+      text: 'Technology, information and internet',
+      svg: (
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6h18M3 12h18M3 18h18" stroke="#2563EB" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    }
+  ];
 
 const Contact = () => {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
     setName(localStorage.getItem(STORAGE_PREFIX + 'name') || '');
     setEmail(localStorage.getItem(STORAGE_PREFIX + 'email') || '');
+    setSubject(localStorage.getItem(STORAGE_PREFIX + 'subject') || '');
     setMessage(localStorage.getItem(STORAGE_PREFIX + 'message') || '');
   }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + 'name', name);
-  }, [name]);
-  useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + 'email', email);
-  }, [email]);
-  useEffect(() => {
+    localStorage.setItem(STORAGE_PREFIX + 'subject', subject);
     localStorage.setItem(STORAGE_PREFIX + 'message', message);
-  }, [message]);
+  }, [name, email, subject, message]);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!name || !email || !message) {
+    if (!name || !email || !subject || !message) {
       setStatus({ type: 'error', text: 'Please fill all fields.' });
       return;
     }
@@ -42,62 +92,94 @@ const Contact = () => {
       const res = await fetch(`${base}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, message }),
+        body: JSON.stringify({ name, email, subject, message }),
       });
 
       if (!res.ok) throw new Error('Network error');
 
       setStatus({ type: 'success', text: 'Message sent — we will get back to you soon.' });
-      setName(''); setEmail(''); setMessage('');
+      setName(''); setEmail(''); setSubject(''); setMessage('');
       localStorage.removeItem(STORAGE_PREFIX + 'name');
       localStorage.removeItem(STORAGE_PREFIX + 'email');
+      localStorage.removeItem(STORAGE_PREFIX + 'subject');
       localStorage.removeItem(STORAGE_PREFIX + 'message');
       setTimeout(() => setStatus(null), 3000);
-    } catch (err) {
+    } 
+    catch (err) {
       setStatus({ type: 'error', text: 'Failed to send. Please try again later.' });
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="mx-auto  max-w-4xl ">
       <div className="flex items-center mb-6 mt-5">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="p-2 mr-4 rounded-md hover:bg-gray-100">
-          <ArrowLeft />
-        </button>
-        <h1 className="text-2xl font-semibold">Contact</h1>
-      </div>
-
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        <p className="text-gray-700 mb-4">Got a question? Send us a message and we'll respond as soon as possible.</p>
-
-        <form onSubmit={submit} className="space-y-4" aria-labelledby="contact-form">
-          <label className="sr-only" id="contact-form">Contact form</label>
-
-          <div>
-            <label className="block text-sm text-gray-600">Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full border px-3 py-2 rounded-md" placeholder="Your name" aria-required="true" />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-600">Email</label>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border px-3 py-2 rounded-md" placeholder="Your email" type="email" aria-required="true" />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-600">Message</label>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="w-full border px-3 py-2 rounded-md" placeholder="Your message" rows={5} aria-required="true" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <motion.button whileTap={{ scale: 0.98 }} type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md" aria-busy={status?.type === 'loading'}>
-              Send
-            </motion.button>
-            <div role="status" aria-live="polite" className={`text-sm ${status?.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
-              {status?.text}
+              <button onClick={() => navigate(-1)} className="p-2 mr-4 rounded-md hover:bg-gray-100">
+                <ArrowLeft />
+              </button>
+              <h1 className="text-2xl font-semibold">Get In Touch</h1>
             </div>
-          </div>
-        </form>
-      </motion.div>
+      <p className="text-[#666]  text-center mb-6">
+          If you have any questions or need assistance? We're here to help you on your journey to success.
+        </p>
+
+      <div className=" bg-[#E8E8F1] max-w-[1200px] w-full mx-auto p-6 lg:p-9  grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 rounded-2xl">
+
+  
+ 
+        {/* Block 1: Contact Information */}
+        <div className="shrink-0 w-full bg-[#ECEEF3] p-6 rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.05)]">
+          <h2 className="text-xl font-semibold mb-9">Contact Information</h2>
+          {contactInfo.map((item, i) => (
+            <div key={i} className="flex gap-4 mb-7 items-start">
+              <div className="w-7 h-7 flex items-center justify-center">
+                {item.svg}
+              </div>
+              <div>
+                <h3 className="font-semibold text-[19px] mb-1.5">{item.title}</h3>
+                <p className="m-0 text-[#666] text-[17px]">{item.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Block 2: Send Us a Message section */}
+        <div className="grow w-full p-[30px] bg-[#ECEEF3] rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
+          <h2 className="text-2xl font-semibold mb-5 text-[#333]">
+            Send Us a Message
+          </h2>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+
+            <form onSubmit={submit} className=" flex flex-col gap-[18px]" aria-labelledby="contact-form">
+              <label className="sr-only" id="contact-form">Contact form</label>
+
+              <div>
+                <input value={name} onChange={(e) => setName(e.target.value)} className="w-full  p-2 rounded-lg border border-[#D0D5DD] text-[15px] focus:outline-none focus:border-[#4A66F7]" placeholder="Your full name" aria-required="true" />
+              </div>
+
+              <div>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full  p-2 rounded-lg border border-[#D0D5DD] text-[15px] focus:outline-none focus:border-[#4A66F7]" placeholder="Your email" type="email" aria-required="true" />
+              </div>
+              
+              <div>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full  p-2 rounded-lg border border-[#D0D5DD] text-[15px] focus:outline-none focus:border-[#4A66F7]" placeholder="Subject" type="text" aria-required="true" />
+              </div>
+
+              <div>
+                <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="w-full p-3 rounded-lg border border-[#D0D5DD] text-[15px] resize-none focus:outline-none focus:border-[#4A66F7]" placeholder="Message" rows={5} aria-required="true" />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <motion.button whileTap={{ scale: 0.98 }} type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md" aria-busy={status?.type === 'loading'}>
+                  Send
+                </motion.button>
+                <div role="status" aria-live="polite" className={`text-sm ${status?.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+                  {status?.text}
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
