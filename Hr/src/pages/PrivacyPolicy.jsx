@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const sections = [
-  { title: 'Data we collect', content: 'We collect basic profile and usage data to improve the service.' },
-  { title: 'How we use data', content: 'Data is used for analytics, personalization and to operate the service.' },
-  { title: 'Your choices', content: 'You can request deletion or export of your data; contact support.' },
-];
-
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
-  const [open, setOpen] = useState(-1);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -21,23 +13,83 @@ const PrivacyPolicy = () => {
         <h1 className="text-2xl font-semibold">Privacy Policy</h1>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-        <p className="text-gray-700 mb-4">We care about your privacy. Expand sections below to learn more.</p>
-
-        <div className="space-y-3">
-          {sections.map((s, i) => (
-            <div key={i} className="border rounded-md">
-              <button className="w-full px-4 py-3 flex items-center justify-between" onClick={() => setOpen(open === i ? -1 : i)}>
-                <div>
-                  <h3 className="font-medium">{s.title}</h3>
-                </div>
-                <ChevronDown className={`transition-transform ${open === i ? 'rotate-180' : ''}`} />
-              </button>
-              {open === i && <div className="px-4 pb-4 text-gray-700">{s.content}</div>}
-            </div>
-          ))}
+    <div className="flex flex-col h-full w-full max-w-6xl mx-auto">
+      
+      {/* Outer Card Container */}
+      <div className="bg-white/40 backdrop-blur-sm border-2 border-white rounded-[2rem] p-6 md:p-10 h-full relative flex flex-col shadow-sm overflow-hidden">
+        
+        {/* Header Title */}
+        <div className="flex-shrink-0 mb-6 text-center md:text-left">
+          <h1 className="text-2xl md:text-3xl font-bold text-[#071A52] font-poppins">
+            Privacy Policy
+          </h1>
         </div>
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 pb-16 md:pb-9 ">
+          
+          {/* Block 1 */}
+          <div className="bg-[#EBEBF0]/80 p-5 rounded-xl">
+            <h3 className="font-bold text-[#7B2CBF] mb-2 text-sm md:text-base font-poppins">
+              last updated: October 26, 2025
+            </h3>
+            <p className="text-[#4A4A4A] text-xs md:text-sm font-medium leading-relaxed font-poppins">
+              Your privacy is important to us. This Privacy Policy explains what information we collect, 
+              how we use it, and your choices regarding your information.
+            </p>
+          </div>
+
+          {/* Block 2 */}
+          <div className="bg-[#EBEBF0]/80 p-5 rounded-xl">
+            <h3 className="font-bold text-[#7B2CBF] mb-2 text-sm md:text-base font-poppins">
+              Information We Collect
+            </h3>
+            <ul className="text-[#4A4A4A] text-xs md:text-sm font-medium space-y-1 list-none font-poppins">
+              <li>• Personal Information (e.g., name, email address)</li>
+              <li>• Usage Data (e.g., IP address, browser type)</li>
+              <li>• Cookies and Tracking Technologies</li>
+            </ul>
+          </div>
+
+          {/* Block 3 */}
+          <div className="bg-[#EBEBF0]/80 p-5 rounded-xl">
+            <h3 className="font-bold text-[#7B2CBF] mb-2 text-sm md:text-base font-poppins">
+              How We Use Your Information
+            </h3>
+            <ul className="text-[#4A4A4A] text-xs md:text-sm font-medium space-y-1 list-none font-poppins">
+              <li>• To provide and maintain our service.</li>
+              <li>• To improve, personalize, and expand our service.</li>
+              <li>• For communication and customer support.</li>
+            </ul>
+          </div>
+
+          {/* Block 4 */}
+          <div className="bg-[#EBEBF0]/80 p-5 rounded-xl">
+            <h3 className="font-bold text-[#7B2CBF] mb-2 text-sm md:text-base font-poppins">
+              Data Retention
+            </h3>
+            <p className="text-[#4A4A4A] text-xs md:text-sm font-medium leading-relaxed font-poppins">
+              We store your personal data only as long as necessary to provide our services or comply with legal obligations.
+            </p>
+          </div>
+
+        </div>
+
+        {/* Footer Button 
+            Mobile: Centered, Blue Pill Shape 
+            Desktop: Bottom Right, Blue Pill Shape
+        */}
+        <div className="absolute bottom-4 left-0 right-0 md:left-auto md:right-10 flex justify-center md:block pointer-events-none">
+          <button 
+            className="pointer-events-auto bg-[#3B9DF8] hover:bg-blue-600 text-white text-sm font-semibold py-3 px-10 rounded-full shadow-lg transition-colors duration-300 font-poppins "
+            onClick={() => console.log("Accepted")}
+          >
+            Accept and Continue
+          </button>
+        </div>
+
       </div>
+    </div>
     </div>
   );
 };
