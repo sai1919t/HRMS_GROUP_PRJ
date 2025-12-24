@@ -1,20 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Heart,
-  Download,
-  Globe,
-  MapPin,
-  FileText,
-  Monitor,
-  Trash2,
-  Clock,
-  LogOut,
-  Settings,
-  UserPlus,
-  User,
-} from "lucide-react";
+import people from "../../assets/people.png";
+import { Heart, LogOut, Settings, UserPlus, User,} from "lucide-react";
 
 const ProfilePage = ({ onEditProfile, userOverride }) => {
   const [user, setUser] = useState(() => {
@@ -61,123 +48,364 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-100 to-gray-200 p-6 sm:p-10">
-
-      {/* HEADER */}
-      <div className="bg-white/70 backdrop-blur-xl shadow-lg rounded-2xl p-6 mb-8 border border-white/40 flex items-center justify-between">
-        <div className="flex items-center">
-          <button onClick={() => navigate(-1)} className="p-2 mr-4 rounded-md hover:bg-gray-100">
-            <ArrowLeft />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              My Profile
-            </h1>
-            <p className="text-gray-600 mt-1">Manage your personal information & settings</p>
-          </div>
+      <div className="w-full mx-auto">
+        {/* HEADER */}
+        <div className="flex justify-between">
+            {/* <button onClick={() => navigate(-1)} className="p-2 mr-4 rounded-md hover:bg-gray-100">
+              <ArrowLeft />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">My Profile</h1>
+              <p className="text-gray-600 leading-tigh">Manage your personal information & settings</p>
+            </div> */}
+            <h2 className="text-2xl font-semibold mb-4">👋 Greetings, {userData.fullname}</h2>
+          {/* <button className="inline-flex items-center gap-1 bg-[#ff5b5b] text-black text-sm font-semibold px-5 py-0.5 mr-0.5 rounded-full leading-none hover:bg-[#ff4a4a] active:scale-95 transition cursor-pointer"
+            onClick={async () => {
+              const { logout } = await import("../../services/auth.service.js");
+              await logout();
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              window.location.href = "/login";
+            }}>
+            <LogOut className="w-5 h-5" />
+              Logout
+          </button> */}
         </div>
-      </div>
 
-      <div className="flex flex-col lg:flex-row gap-10">
+        <div className="flex flex-col lg:flex-row gap-6">
 
-        {/* LEFT SECTION */}
-        <div className="flex-1 space-y-10">
+          {/* LEFT SECTION */}
+          <div className="flex-1 space-y-8">
 
-          {/* PROFILE CARD */}
-          <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200 hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center gap-8">
-              <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-200 flex items-center justify-center bg-gray-100">
-                {userData.avatar && userData.avatar !== "https://i.pravatar.cc/150?img=5" ? (
-                  <img
-                    src={userData.avatar}
-                    alt={userData.fullname}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User size={64} className="text-gray-400" />
-                )}
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-3xl font-semibold text-gray-900">
-                    {userData.fullname}
-                  </h2>
-                  <span className="text-xs uppercase bg-blue-100 text-blue-700 px-3 py-1 rounded-full shadow-sm">
-                    {userData.designation}
-                  </span>
+            {/* PROFILE CARD */}
+            <section className="bg-[#E5F4FF] p-6 rounded-xl shadow-md">
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                {/* Avatar, info */}
+                <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg ring-4 ring-blue-200 flex items-center justify-center bg-gray-100">
+                  {userData.avatar && userData.avatar !== "https://i.pravatar.cc/150?img=5" ? (
+                    <img
+                      src={userData.avatar}
+                      alt={userData.fullname}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={64} className="text-gray-400" />
+                  )}
                 </div>
 
-                <p className="text-sm text-gray-600 mt-1">{userData.email}</p>
-                <p className="text-sm text-gray-500 mt-2 max-w-md">{userData.bio}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-semibold">{userData.fullname}</h2>
+                    <span className="text-gray-500 text-sm">{userData.designation}</span>
+                  </div>
 
-                <div className="mt-5 flex gap-4">
-                  {!userOverride && (
-                    <button
-                      onClick={onEditProfile}
-                      className="bg-[#266ECD] text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition"
-                    >
-                      Edit Profile
-                    </button>
-                  )}
+                  <p className="text-sm text-gray-600 mt-1">{userData.email}</p>
+                  <p className="text-sm text-gray-500 mt-2 max-w-md">{userData.bio}</p>
 
-                  <button
-                    className="border border-gray-300 px-5 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-100 active:scale-95 transition"
-                    onClick={() => navigator.clipboard?.writeText(userData.email)}
+                  <div className="mt-5 flex gap-4">
+                    {!userOverride && (
+                      <button onClick={onEditProfile} className="mt-3 bg-[#35A5F5] text-white px-4 py-2 rounded-md text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition cursor-pointer">
+                        Edit Profile
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-sm text-gray-600">Profile Completion 70%</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div className="bg-[#35A5F5] h-2 rounded-full w-[70%]" />
+                  </div>
+                </div>
+
+                {/* SMALL CARD */}
+                <div className="bg-linear-to-b from-[#DCEFFD] to-[#B6D9F3] p-3 rounded-lg w-full lg:w-[180px]">
+                  <p className="text-xs font-medium">Start where you left –</p>
+                  <p className="text-xs font-medium">complete your pending tasks</p>
+                  <div className="flex items-center gap-2 mt-6">
+                    <img src={people} alt="" className="w-10 h-4" />
+                    <p className="text-xs">+7 members involved</p>
+                  </div>
+                  <button className="mt-3 bg-[#35A5F5] text-white px-3 py-1.5 rounded-md text-xs w-full font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition cursor-pointer">Jump to the task</button>
+                </div>
+              </div>
+            </section>
+
+            {/* WORK OVERFLOW */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Work Overflow</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 ">
+                {[
+                  { label: "Active goals", value: "3" },
+                  { label: "Progress", value: "40%" },
+                  { label: "Completed", value: "6" },
+                  { label: "Due Tasks", value: "2" }
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    className="bg-[#e6f0fb] p-4 rounded-lg flex justify-between items-center shadow-md"
                   >
-                    Copy email
-                  </button>
+                    <div>
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xl font-bold mt-1">{item.value}</p>
+                    </div>
+                    <span className="text-lg font-semibold">❯</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* DUE TASKS */}
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Complete Due Tasks</h3>
+
+              <div className="space-y-3">
+                {[
+                  { title: "Schedule management level meeting", members: "+7 members", percent: "10%" },
+                  { title: "Upload report for the month October", members: "+2 members", percent: "50%" }
+                ].map((task, index) => (
+                  <div key={index} className="bg-[#e6f0fb] p-4 rounded-lg flex justify-between items-center shadow-md">
+                    <div>
+                      <p className="font-semibold">{index + 1}. {task.title}</p>
+                      <p className="text-sm font-medium mt-1">{task.members}</p>
+                    </div>
+                    <div className="w-11 h-11 rounded-full bg-[#6d5dfc] flex items-center justify-center text-white text-xs font-semibold">
+                      {task.percent}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* QUICK ACTIONS */}
+            <div className="mt-5 shadow-md">
+              <h3 className="mt-1.5 mb-3 text-[18px] font-semibold">Quick actions</h3>
+              <div className="relative bg-[#e6f0fb] p-[22px] rounded-[14px]">
+                {/* Center separator */}
+                <div className="absolute top-4 bottom-4 left-1/2 w-px bg-[#cbd5e1]" />
+                <div className="grid grid-cols-2 gap-y-[18px] gap-x-10">
+                  {/* Latest Feeds */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <rect x="4" y="4" width="16" height="16" />
+                      <path d="M8 9h8M8 13h6" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/feed')}>Latest Feeds</span>
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M12 21s6-5.3 6-10a6 6 0 10-12 0c0 4.7 6 10 6 10z" />
+                      <circle cx="12" cy="11" r="2" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/location')}>Location</span>
+                  </div>
+
+                  {/* Latest Uploads */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M12 16V4" />
+                      <path d="M8 8l4-4 4 4" />
+                      <path d="M4 20h16" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/uploads')}>Latest Uploads</span>
+                  </div>
+
+                  {/* Recently deleted */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M3 6h18" />
+                      <path d="M8 6v14h8V6" />
+                      <path d="M10 10v6M14 10v6" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/deleted')}>Recently deleted</span>
+                  </div>
+
+                  {/* Languages */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M4 5h8" />
+                      <path d="M8 5v14" />
+                      <path d="M4 19h8" />
+                      <path d="M14 7h6" />
+                      <path d="M17 7v10" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/languages')}>Languages</span>
+                  </div>
+
+                  {/* Clear History */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M3 12a9 9 0 109-9" />
+                      <path d="M3 3v6h6" />
+                      <path d="M12 7v5l3 3" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/clear-history')}>Clear History</span>
+                  </div>
+
+                  {/* Display */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer">
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <rect x="3" y="4" width="18" height="12" />
+                      <path d="M8 20h8" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/display')}>Display</span>
+                  </div>
+
+                  {/* Files & Documents */}
+                  <div className="flex items-center gap-3 hover:bg-gray-100 cursor-pointer" >
+                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="1.8">
+                      <path d="M6 3h8l4 4v14H6z" />
+                      <path d="M14 3v5h5" />
+                    </svg>
+                    <span className="text-[16px] font-semibold" onClick={() => navigate('/profile/files')}>Files &amp; Documents</span>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* INTERACTIVE MENU SECTIONS */}
+            {/* <SectionCard>
+              <MenuItem icon={<Heart />} label="Latest feed" onClick={() => navigate('/profile/feed')} />
+              <MenuItem icon={<Download />} label="Latest uploads" onClick={() => navigate('/profile/uploads')} />
+            </SectionCard>
+
+            <SectionCard>
+              <MenuItem icon={<Globe />} label="Languages" onClick={() => navigate('/profile/languages')} />
+              <MenuItem icon={<MapPin />} label="Location" onClick={() => navigate('/profile/location')} />
+              <MenuItem icon={<FileText />} label="Files and documents" onClick={() => navigate('/profile/files')} />
+              <MenuItem icon={<Monitor />} label="Display" onClick={() => navigate('/profile/display')} />
+            </SectionCard>
+
+            <SectionCard>
+              <MenuItem icon={<Trash2 />} label="Recently deleted" onClick={() => navigate('/profile/deleted')} />
+              <MenuItem icon={<Clock />} label="Clear History" onClick={() => navigate('/profile/clear-history')} />
+              <MenuItem icon={<LogOut className="rotate-180" />} label="Exit" onClick={() => navigate('/profile/exit')} />
+            </SectionCard> */}
           </div>
 
-          {/* INTERACTIVE MENU SECTIONS */}
-          <SectionCard>
-            <MenuItem icon={<Heart />} label="Latest feed" onClick={() => navigate('/profile/feed')} />
-            <MenuItem icon={<Download />} label="Latest uploads" onClick={() => navigate('/profile/uploads')} />
-          </SectionCard>
+          {/* RIGHT SIDEBAR */}
+          <div className="w-full lg:w-80">
+            <div className="bg-[#DDEFFF] rounded-3xl px-4 py-5 space-y-5">
+                {/* top-right ? icon */}
+                <div className="flex justify-end">
+                  <button className="w-7 h-7 rounded-full bg-white flex items-center justify-center text-xs font-semibold text-gray-600 shadow-sm">?</button>
+                </div>
 
-          <SectionCard>
-            <MenuItem icon={<Globe />} label="Languages" onClick={() => navigate('/profile/languages')} />
-            <MenuItem icon={<MapPin />} label="Location" onClick={() => navigate('/profile/location')} />
-            <MenuItem icon={<FileText />} label="Files and documents" onClick={() => navigate('/profile/files')} />
-            <MenuItem icon={<Monitor />} label="Display" onClick={() => navigate('/profile/display')} />
-          </SectionCard>
+                {/* circular score */}
+                <div className="flex justify-center">
+                  <div className="relative w-28 h-28">
+                    <svg viewBox="0 0 36 36" className="w-full h-full">
+                      {/* background circle */}
+                      <path className="text-[#C3DBFF]" stroke="currentColor" strokeWidth="3.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      {/* progress arc */}
+                      <path className="text-[#8B5CF6]" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="80 100" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                    </svg>
 
-          <SectionCard>
-            <MenuItem icon={<Trash2 />} label="Recently deleted" onClick={() => navigate('/profile/deleted')} />
-            <MenuItem icon={<Clock />} label="Clear History" onClick={() => navigate('/profile/clear-history')} />
-            <MenuItem icon={<LogOut className="rotate-180" />} label="Exit" onClick={() => navigate('/profile/exit')} />
-          </SectionCard>
-        </div>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-xl font-bold">80%</span>
+                      <span className="text-xs text-gray-600 -mt-0.5">Score</span>
+                    </div>
+                  </div>
+                </div>
 
-        {/* RIGHT SIDEBAR */}
-        <div className="w-full lg:w-80">
-          <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-200 hover:shadow-2xl transition-all duration-300">
-            <div className="space-y-6">
-              <SidebarItem icon={<Heart />} label="Appreciations" onClick={() => navigate('/recognition')} />
-              <SidebarItem icon={<UserPlus />} label="My Referrals" onClick={() => navigate('/profile/referrals')} />
-              <SidebarItem icon={<Settings />} label="Settings" onClick={() => navigate('/settings')} />
+                {/* Fantastic job pill */}
+                <div className="flex justify-center">
+                  <button className="inline-flex items-center gap-2 rounded-full bg-[#2F9DF7] text-white text-xs font-medium px-4 py-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />Fantastic job</button>
+                </div>
 
-              <div className="pt-4">
-                <button
-                  className="w-full bg-red-50 text-red-600 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-100 active:scale-95 transition"
+                {/* Statistics header */}
+                <div className="flex items-center justify-between pt-1">
+                  <p className="text-sm font-semibold text-gray-800">Statistics</p>
+                  <button className="inline-flex items-center gap-1 bg-[#2F9DF7] text-white text-xs px-3 py-1 rounded-full shadow-sm">
+                    <span>Nov</span>
+                    <svg className="w-3 h-3" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Statistic cards */}
+                <div className="space-y-3">
+                  {[
+                    {
+                      title: "Performance",
+                      subtitle: "Based on work",
+                      percent: "82%",
+                      badge: null,
+                    },
+                    {
+                      title: "Success",
+                      subtitle: "Based on work",
+                      percent: "91%",
+                      badge: "New goals",
+                    },
+                    {
+                      title: "Innovation",
+                      subtitle: "worked ideas",
+                      percent: "13%",
+                      badge: null,
+                    },
+                  ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-[#E7F3FF] rounded-2xl px-3 py-3 flex items-center justify-between shadow-sm">
+                    {/* left text & percent chip */}
+                    <div className="flex flex-col justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">
+                          {item.title}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          {item.subtitle}
+                        </p>
+                      </div>
+                      
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-white/80 text-[10px] font-semibold text-[#4B7AD6]">
+                          {item.percent}
+                        </span>
+                        {item.badge && (
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-[#2F9DF7] text-[10px] font-semibold text-white">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* simple line chart on right */}
+                    <svg viewBox="0 0 80 32" className="w-16 h-10 text-[#222]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <polyline points="0,24 12,20 24,22 36,14 48,18 60,10 72,14 80,6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <br/>
+            {/* bottom right section */}
+            <div className="bg-[#E5F4FF] rounded-xl shadow-xl p-6">
+              <div className="space-y">
+                <SidebarItem icon={<Heart />} label="Appreciations" onClick={() => navigate('/recognition')} />
+                <SidebarItem icon={<UserPlus />} label="My Referrals" onClick={() => navigate('/profile/referrals')} />
+                <SidebarItem icon={<Settings />} label="Settings" onClick={() => navigate('/settings')} />
+                <button className="w-full bg-red-50 text-red-600 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-100 active:scale-95 transition"
                   onClick={async () => {
-                    const { logout } = await import("../../services/auth.service.js");
-                    await logout();
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.location.href = "/login";
-                  }}
-                >
+                  const { logout } = await import("../../services/auth.service.js");
+                  await logout();
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("user");
+                  window.location.href = "/login";
+                  }}>
                   <LogOut className="w-5 h-5" />
                   Logout
                 </button>
               </div>
+              
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );
