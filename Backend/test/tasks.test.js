@@ -52,14 +52,11 @@ describe('Tasks API', function() {
   });
 
   it('should allow assigned user to update status to completed', async () => {
-    // login as the worker to get token
-    const login = await request(app).post('/api/users/login').send({ email: `worker-${Date.now()}@test`, password: 'Password1!' });
-    // If login fails because the generated worker email differs, fetch token by logging in with stored user
-    // Instead, get user directly from db and sign token manually
+    // get worker token by signing a JWT for the user id
     const { rows } = await pool.query('SELECT id, role FROM users WHERE id = $1', [userId]);
     const user = rows[0];
-    const jwt = (await import('jsonwebtoken'));
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+    const jwtLib = await import('jsonwebtoken');
+    const token = jwtLib.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
 
     const res = await request(app)
       .put(`/api/tasks/${taskId}`)
@@ -69,5 +66,23 @@ describe('Tasks API', function() {
     expect(res.status).to.equal(200);
     expect(res.body.success).to.equal(true);
     expect(res.body.data.status).to.equal('completed');
+  });
+
+  it('should let admin certify when marking as completed', async () => {
+    // decode admin token to get admin id
+    const jwtLib = await import('jsonwebtoken');
+    const decoded = jwtLib.verify(adminToken, process.env.JWT_SECRET || 'secret');
+    const adminId = decoded.id;
+
+    const res = await request(app)
+      .put(`/api/tasks/${taskId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'completed' });
+
+    expect(res.status).to.equal(200);
+    expect(res.body.success).to.equal(true);
+    expect(res.body.data.status).to.equal('completed');
+    expect(res.body.data.certified_by).to.equal(adminId);
+    expect(res.body.data.certified_at).to.not.equal(null);
   });
 });

@@ -22,6 +22,9 @@ export const createTasksTable = async () => {
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS percent_completed INTEGER DEFAULT 0`);
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'`);
     await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS due_date DATE`);
+    // Support certification by admin: certified_by (user id) and certified_at (timestamp)
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS certified_by INTEGER`);
+    await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS certified_at TIMESTAMP`);
     console.log("✅ Tasks table created/updated successfully");
   } catch (error) {
     console.error("❌ Error creating tasks table:", error);
@@ -47,7 +50,7 @@ export const getTasks = async (assignedTo = null) => {
     return rows;
   }
 
-  const query = `SELECT t.*, a.fullname AS assigned_to_name, c.fullname AS created_by_name FROM tasks t LEFT JOIN users a ON t.assigned_to = a.id LEFT JOIN users c ON t.created_by = c.id ORDER BY t.due_date NULLS LAST, t.created_at DESC`;
+  const query = `SELECT t.*, a.fullname AS assigned_to_name, c.fullname AS created_by_name, cb.fullname AS certified_by_name FROM tasks t LEFT JOIN users a ON t.assigned_to = a.id LEFT JOIN users c ON t.created_by = c.id LEFT JOIN users cb ON t.certified_by = cb.id ORDER BY t.due_date NULLS LAST, t.created_at DESC`;
   const { rows } = await pool.query(query);
   return rows;
 };
@@ -59,7 +62,7 @@ export const getTaskById = async (id) => {
 };
 
 export const updateTask = async (id, updates) => {
-  const allowed = ['title', 'description', 'assigned_to', 'status', 'percent_completed', 'due_date'];
+  const allowed = ['title', 'description', 'assigned_to', 'status', 'percent_completed', 'due_date', 'certified_by', 'certified_at'];
   const setClauses = [];
   const values = [];
   let idx = 1;

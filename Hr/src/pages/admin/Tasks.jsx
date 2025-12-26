@@ -157,21 +157,87 @@ const TasksAdmin = () => {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-6">
+            {/* Group tasks: Due (overdue & not completed), In Progress / Pending, Completed */}
             {filtered.length === 0 && <div className="text-gray-600">No tasks</div>}
-            {filtered.map(task => (
-              <div className="p-3 bg-gray-50 rounded flex justify-between items-center" key={task.id}>
-                <div>
-                  <div className="font-semibold">{task.title}</div>
-                  <div className="text-sm text-gray-500">Assigned: {task.assigned_to_name || '—'}</div>
-                  <div className="text-sm text-gray-500">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={async () => { try { await updateTask(task.id, { status: 'completed', percent_completed: 100 }); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Mark done</button>
-                  <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
-                </div>
-              </div>
-            ))}
+
+            {(() => {
+              const now = new Date();
+              const due = filtered.filter(t => t.status !== 'completed' && t.due_date && new Date(t.due_date) <= now);
+              const inProgress = filtered.filter(t => t.status !== 'completed' && (!t.due_date || new Date(t.due_date) > now));
+              const completed = filtered.filter(t => t.status === 'completed');
+
+              return (
+                <>
+                  {/* DUE */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">Due ({due.length})</h4>
+                    {due.length === 0 ? <div className="text-gray-500 mb-3">No due tasks</div> : (
+                      <div className="space-y-2 mb-4">
+                        {due.map(task => (
+                          <div className="p-3 bg-red-50 rounded flex justify-between items-center" key={task.id}>
+                            <div>
+                              <div className="font-semibold">{task.title}</div>
+                              <div className="text-sm text-gray-500">Assigned: {task.assigned_to_name || '—'}</div>
+                              <div className="text-sm text-gray-500">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={async () => { try { await updateTask(task.id, { status: 'completed', percent_completed: 100 }); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Certify & Mark done</button>
+                              <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* IN PROGRESS */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">In Progress / Pending ({inProgress.length})</h4>
+                    {inProgress.length === 0 ? <div className="text-gray-500 mb-3">No pending or in-progress tasks</div> : (
+                      <div className="space-y-2 mb-4">
+                        {inProgress.map(task => (
+                          <div className="p-3 bg-yellow-50 rounded flex justify-between items-center" key={task.id}>
+                            <div>
+                              <div className="font-semibold">{task.title}</div>
+                              <div className="text-sm text-gray-500">Assigned: {task.assigned_to_name || '—'}</div>
+                              <div className="text-sm text-gray-500">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={async () => { try { await updateTask(task.id, { status: 'completed', percent_completed: 100 }); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Certify & Mark done</button>
+                              <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* COMPLETED */}
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2">Completed ({completed.length})</h4>
+                    {completed.length === 0 ? <div className="text-gray-500 mb-3">No completed tasks</div> : (
+                      <div className="space-y-2">
+                        {completed.map(task => (
+                          <div className="p-3 bg-green-50 rounded flex justify-between items-center" key={task.id}>
+                            <div>
+                              <div className="font-semibold">{task.title}</div>
+                              <div className="text-sm text-gray-500">Assigned: {task.assigned_to_name || '—'}</div>
+                              <div className="text-sm text-gray-500">Completed: {task.certified_at ? new Date(task.certified_at).toLocaleString() : (task.updated_at ? new Date(task.updated_at).toLocaleString() : '—')}</div>
+                              {task.certified_by_name && <div className="text-sm text-gray-500">Certified by: {task.certified_by_name}</div>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={async () => { if (!confirm('Re-open this task?')) return; try { await updateTask(task.id, { status: 'in_progress', percent_completed: 0, certified_by: null, certified_at: null }); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-yellow-100 text-yellow-700 text-sm">Re-open</button>
+                              <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

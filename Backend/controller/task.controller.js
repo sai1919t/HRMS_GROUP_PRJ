@@ -99,6 +99,13 @@ export const updateTaskController = async (req, res) => {
       if (!asUser) return res.status(400).json({ success: false, message: 'Assigned user not found' });
     }
 
+    // If an admin marks a task as completed, automatically set certification fields
+    if (updates.status === 'completed' && req.user.role === 'Admin') {
+      updates.certified_by = req.user.id;
+      updates.certified_at = new Date();
+      updates.percent_completed = 100;
+    }
+
     const updated = await updateTask(id, updates);
 
     try { global?.emitActivity?.('tasks:updated'); } catch (e) {}
