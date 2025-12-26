@@ -50,7 +50,8 @@ export const getTasksController = async (req, res) => {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    if (req.user.role !== 'Admin') {
+    // If the requester is not an admin, default to their own tasks only when no assignedTo is specified.
+    if (req.user.role !== 'Admin' && !assignedTo) {
       assignedTo = req.user.id;
     }
 

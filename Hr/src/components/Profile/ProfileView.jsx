@@ -6,6 +6,7 @@ const ProfileView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -40,7 +41,29 @@ const ProfileView = () => {
         setLoading(false);
       }
     };
+
+    const fetchTasks = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`http://localhost:3000/api/tasks?assignedTo=${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setTasks(json.data || []);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch tasks for profile view', err);
+      }
+    };
+
     fetchUser();
+    fetchTasks();
+
+    const refresh = () => { fetchTasks(); };
+    window.addEventListener('tasks-updated', refresh);
+    return () => window.removeEventListener('tasks-updated', refresh);
   }, [id, navigate]);
 
   if (loading) return <div className="p-6">Loading profile...</div>;
@@ -48,7 +71,7 @@ const ProfileView = () => {
 
   return (
     <div className="bg-white min-h-screen">
-      <ProfilePage userOverride={user} />
+      <ProfilePage userOverride={user} tasksOverride={tasks} />
     </div>
   );
 };

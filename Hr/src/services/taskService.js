@@ -21,9 +21,11 @@ export const createTask = async (task) => {
   }
 };
 
-export const getTasks = async () => {
+export const getTasks = async (assignedTo) => {
   try {
-    const res = await axios.get(API_URL, getAuth());
+    const params = {};
+    if (assignedTo) params.assignedTo = assignedTo;
+    const res = await axios.get(API_URL, { params, ...getAuth() });
     return res.data;
   } catch (err) {
     throw err.response?.data || err.message || err;

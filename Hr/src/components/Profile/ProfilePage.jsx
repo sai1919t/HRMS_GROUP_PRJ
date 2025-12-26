@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import people from "../../assets/people.png";
 import { Heart, LogOut, Settings, UserPlus, User,} from "lucide-react";
 
-const ProfilePage = ({ onEditProfile, userOverride }) => {
+const ProfilePage = ({ onEditProfile, userOverride, tasksOverride }) => {
   const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -14,14 +14,35 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
 
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({ activeGoals: 0, progress: 0, completed: 0, dueTasks: 0 });
+  const [authUser, setAuthUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+  });
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadTasks = async () => {
+    const loadTasks = async (assignedTo) => {
       try {
+        if (tasksOverride && Array.isArray(tasksOverride)) {
+          // use supplied tasks from parent view
+          const data = tasksOverride || [];
+          setTasks(data);
+
+          const now = new Date();
+          const completed = data.filter(t => t.status === 'completed').length;
+          const totalTasks = data.length;
+          const dueTasks = data.filter(t => t.status !== 'completed' && t.due_date && new Date(t.due_date) <= now).length;
+          const activeGoals = data.filter(t => t.status === 'in_progress' || (t.status === 'pending' && (t.due_date || t.percent_completed))).length;
+          const progress = data.length > 0 ? Math.round(data.reduce((s, t) => s + (Number(t.percent_completed) || 0), 0) / data.length) : 0;
+          const completedRate = totalTasks ? Math.round((completed / totalTasks) * 100) : 0;
+          const profileCompletion = Math.min(100, Math.round((progress * 0.6) + (completedRate * 0.4)));
+          const score = profileCompletion;
+          setStats({ activeGoals, progress, completed, dueTasks, totalTasks, completedRate, profileCompletion, score });
+          return;
+        }
+
         const { getTasks } = await import('../../services/taskService.js');
-        const resp = await getTasks();
+        const resp = await getTasks(assignedTo);
         if (!isMounted) return;
         const data = resp.data || [];
         setTasks(data);
@@ -45,13 +66,14 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
     };
 
     // initial load
-    loadTasks();
+    loadTasks(userOverride?.id);
 
     // refresh when tasks are updated elsewhere (admin, other pages)
-    window.addEventListener('tasks-updated', loadTasks);
+    const refresh = () => loadTasks(userOverride?.id);
+    window.addEventListener('tasks-updated', refresh);
 
-    return () => { isMounted = false; window.removeEventListener('tasks-updated', loadTasks); };
-  }, []);
+    return () => { isMounted = false; window.removeEventListener('tasks-updated', refresh); };
+  }, [userOverride, tasksOverride]);
 
 
   // If a user object is passed via props (viewing another profile), prefer it
@@ -69,8 +91,14 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
         }
       }
     };
+
+    const onUserUpdated = () => {
+      try { setAuthUser(JSON.parse(localStorage.getItem('user') || 'null')); } catch { setAuthUser(null); }
+    };
+
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener('user-updated', onUserUpdated);
+    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener('user-updated', onUserUpdated); };
   }, [userOverride]);
 
   const userData = user ? {
@@ -201,15 +229,24 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
 
               <div className="space-y-3">
                 {tasks.length === 0 && (
-                  <div className="bg-[#e6f0fb] p-4 rounded-lg shadow-md text-gray-600">No due tasks assigned</div>
+                  <div className="bg-[#e6f0fb] p-4 rounded-lg shadow-md text-gray-600">No tasks assigned</div>
                 )}
 
-                {tasks.map((task, index) => (
+                {tasks.map((task, index) => {
+                  const canMark = authUser && (authUser.role === 'Admin' || String(authUser.id) === String(task.assigned_to));
+                  const isCompleted = task.status === 'completed';
+                  return (
                   <div key={task.id || index} className="bg-[#e6f0fb] p-4 rounded-lg flex justify-between items-center shadow-md">
                     <div>
                       <p className="font-semibold">{index + 1}. {task.title}</p>
                       <p className="text-sm font-medium mt-1">Assigned by: {task.created_by_name || '—'}</p>
                       <p className="text-sm text-gray-500 mt-1">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</p>
+                      {isCompleted && (
+                        <p className="text-xs text-gray-500 mt-1">Completed: {task.certified_at ? new Date(task.certified_at).toLocaleString() : (task.updated_at ? new Date(task.updated_at).toLocaleString() : '—')}</p>
+                      )}
+                      {isCompleted && task.certified_by_name && (
+                        <p className="text-xs text-gray-500">Certified by: {task.certified_by_name}</p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -217,25 +254,30 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
                         {task.percent_completed ? `${task.percent_completed}%` : '—'}
                       </div>
 
-                      {task.status !== 'completed' ? (
+                      {!isCompleted && canMark ? (
                         <button onClick={async () => {
                           try {
                             const { updateTask } = await import('../../services/taskService.js');
-                            await updateTask(task.id, { status: 'completed', percent_completed: 100 });
-                            // optimistic update
-                            setTasks(prev => prev.map(p => p.id === task.id ? { ...p, status: 'completed', percent_completed: 100 } : p));
-                            setStats(prev => ({ ...prev, completed: prev.completed + 1, dueTasks: Math.max(prev.dueTasks - 1, 0) }));
+                            // Admins certify, users mark complete
+                            if (authUser.role === 'Admin') {
+                              await updateTask(task.id, { status: 'completed' });
+                            } else {
+                              await updateTask(task.id, { status: 'completed', percent_completed: 100 });
+                            }
+
+                            await (async () => { const { getTasks } = await import('../../services/taskService.js'); const res = await getTasks(userOverride?.id); setTasks(res.data || []); })();
                             window.dispatchEvent(new Event('tasks-updated'));
                           } catch (err) {
                             console.error('Failed to mark complete', err);
                           }
-                        }} className="px-3 py-1 rounded-md bg-green-600 text-white text-sm">Mark complete</button>
+                        }} className="px-3 py-1 rounded-md bg-green-600 text-white text-sm">{authUser?.role === 'Admin' ? 'Certify & Mark done' : 'Mark complete'}</button>
                       ) : (
-                        <span className="px-2 py-1 rounded-md bg-gray-200 text-sm">Completed</span>
+                        <span className="px-2 py-1 rounded-md bg-gray-200 text-sm">{isCompleted ? 'Completed' : 'Not allowed'}</span>
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
