@@ -161,7 +161,8 @@ import {
   createTaskController,
   getTasksController,
   updateTaskController,
-  deleteTaskController
+  deleteTaskController,
+  getTasksSummaryController
 } from "./controller/task.controller.js";
 
 // ... existing imports ...
@@ -266,6 +267,10 @@ app.put("/api/tasks/:id", authMiddleware, async (req, res) => {
 
 app.delete("/api/tasks/:id", authMiddleware, async (req, res) => {
     return await deleteTaskController(req, res);
+});
+
+app.get('/api/tasks/summary', authMiddleware, async (req, res) => {
+  return await getTasksSummaryController(req, res);
 });
 
 // Update Profile API

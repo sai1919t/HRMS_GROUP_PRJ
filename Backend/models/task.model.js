@@ -92,3 +92,33 @@ export const deleteTask = async (id) => {
   await pool.query(query, [id]);
   return true;
 };
+
+export const getTasksSummary = async (assignedOnly = null) => {
+  // Aggregate total/completed/overdue counts per assigned user
+  if (assignedOnly) {
+    const query = `
+      SELECT t.assigned_to AS user_id,
+             COUNT(*)::int AS total,
+             SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END)::int AS completed,
+             SUM(CASE WHEN t.due_date < CURRENT_DATE AND t.status <> 'completed' THEN 1 ELSE 0 END)::int AS overdue
+      FROM tasks t
+      WHERE t.assigned_to = $1
+      GROUP BY t.assigned_to
+    `;
+    const { rows } = await pool.query(query, [assignedOnly]);
+    return rows;
+  }
+
+  const query = `
+    SELECT t.assigned_to AS user_id,
+           COUNT(*)::int AS total,
+           SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END)::int AS completed,
+           SUM(CASE WHEN t.due_date < CURRENT_DATE AND t.status <> 'completed' THEN 1 ELSE 0 END)::int AS overdue
+    FROM tasks t
+    WHERE t.assigned_to IS NOT NULL
+    GROUP BY t.assigned_to
+  `;
+
+  const { rows } = await pool.query(query);
+  return rows;
+};

@@ -4,6 +4,7 @@ import {
   getTaskById,
   updateTask,
   deleteTask,
+  getTasksSummary,
 } from "../models/task.model.js";
 
 export const createTaskController = async (req, res) => {
@@ -131,5 +132,27 @@ export const deleteTaskController = async (req, res) => {
   } catch (error) {
     console.error("Error deleting task:", error);
     res.status(500).json({ success: false, message: "Failed to delete task", error: error.message });
+  }
+};
+
+export const getTasksSummaryController = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
+
+    const { assignedOnly } = req.query;
+
+    // Only admins can get full summary; non-admins can request for a specific user or their own
+    let data;
+    if (req.user.role === 'Admin') {
+      data = await getTasksSummary(null);
+    } else {
+      const userId = assignedOnly || req.user.id;
+      data = await getTasksSummary(userId);
+    }
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching tasks summary:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch tasks summary', error: error.message });
   }
 };

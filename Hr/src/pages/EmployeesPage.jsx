@@ -24,7 +24,15 @@ function EmployeesPage() {
     // Refresh users (and points) when activity updates (e.g., points transfers)
     const onActivity = () => fetchUsers();
     window.addEventListener('activity:updated', onActivity);
-    return () => window.removeEventListener('activity:updated', onActivity);
+
+    // Refresh when tasks change so we can update task counts in the list
+    const onTasksUpdated = () => fetchUsers();
+    window.addEventListener('tasks-updated', onTasksUpdated);
+
+    return () => {
+      window.removeEventListener('activity:updated', onActivity);
+      window.removeEventListener('tasks-updated', onTasksUpdated);
+    };
   }, []);
 
   const fetchUsers = async () => {
@@ -39,7 +47,23 @@ function EmployeesPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setUsers(data.users || data);
+        const usersList = data.users || data;
+        // fetch tasks summary and merge
+        try {
+          const sres = await fetch('http://localhost:3000/api/tasks/summary', { headers: { Authorization: `Bearer ${token}` } });
+          if (sres.ok) {
+            const sjson = await sres.json();
+            const arr = sjson.data || [];
+            const map = {};
+            arr.forEach(r => { if (r.user_id) map[r.user_id] = r; });
+            const merged = usersList.map(u => ({ ...u, taskSummary: map[u.id] || { total: 0, completed: 0, overdue: 0 } }));
+            setUsers(merged);
+            return;
+          }
+        } catch (err) {
+          console.warn('Failed to fetch tasks summary', err);
+        }
+        setUsers(usersList);
       }
     } catch (err) {
       console.error(err);
@@ -166,7 +190,7 @@ function EmployeesPage() {
                     <th className="px-6 py-4">Role & Dept</th>
                     <th className="px-6 py-4">Contact</th>
                     <th className="px-6 py-4">Points</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Status / Tasks</th>
                     <th className="px-6 py-4">Joined</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
@@ -212,15 +236,21 @@ function EmployeesPage() {
                           {user.points || 0}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
-                              user.status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' :
-                                'bg-gray-100 text-gray-700'
+                          <div>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
+                              user.status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-gray-100 text-gray-700'
                             }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === 'ACTIVE' ? 'bg-green-500' :
-                                user.status === 'INACTIVE' ? 'bg-red-500' : 'bg-gray-400'
-                              }`}></span>
-                            {user.status || 'ACTIVE'}
-                          </span>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === 'ACTIVE' ? 'bg-green-500' : user.status === 'INACTIVE' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
+                              {user.status || 'ACTIVE'}
+                            </span>
+                            {user.taskSummary && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                <span className="mr-3">{user.taskSummary.total || 0} tasks</span>
+                                <span className="text-green-600 mr-3">{user.taskSummary.completed || 0} done</span>
+                                <span className="text-red-600">{user.taskSummary.overdue || 0} overdue</span>
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {user.date_of_joining ? new Date(user.date_of_joining).toLocaleDateString() : (user.created_at ? new Date(user.created_at).toLocaleDateString() : '-')}
