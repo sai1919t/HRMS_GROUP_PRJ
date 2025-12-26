@@ -212,6 +212,7 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
                             // optimistic update
                             setTasks(prev => prev.map(p => p.id === task.id ? { ...p, status: 'completed', percent_completed: 100 } : p));
                             setStats(prev => ({ ...prev, completed: prev.completed + 1, dueTasks: Math.max(prev.dueTasks - 1, 0) }));
+                            window.dispatchEvent(new Event('tasks-updated'));
                           } catch (err) {
                             console.error('Failed to mark complete', err);
                           }

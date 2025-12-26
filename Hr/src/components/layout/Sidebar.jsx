@@ -26,6 +26,9 @@ function Sidebar() {
   const email = user?.email || "";
   const avatarSrc = user?.profile_picture;
 
+  const [taskStats, setTaskStats] = useState({ completed: 0, remaining: 0, overdue: 0, total: 0 });
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
   const menuItems = [
     { name: "Dashboard", path: "/dashboard" },
     { name: "Chat", path: "/chat" },
@@ -36,8 +39,60 @@ function Sidebar() {
     { name: "Recruitment", path: "/recruitment" },
     { name: "Profile", path: "/profile" },
     { name: "Settings", path: "/settings" },
-
   ];
+
+  // Determine the tasks link destination based on user role
+  const tasksLink = user && user.role === 'Admin' ? '/admin/tasks' : '/profile/tasks';
+  const tasksActive = location.pathname.startsWith('/admin/tasks') || location.pathname.startsWith('/profile/tasks');
+
+  // Load tasks summary
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const { getTasks } = await import('../../services/taskService.js');
+        setLoadingTasks(true);
+        const res = await getTasks();
+        if (!isMounted) return;
+        const data = res.data || [];
+        const now = new Date();
+        const completed = data.filter(t => t.status === 'completed').length;
+        const remaining = data.filter(t => t.status !== 'completed').length;
+        const overdue = data.filter(t => t.due_date && new Date(t.due_date) < now && t.status !== 'completed').length;
+        setTaskStats({ completed, remaining, overdue, total: data.length });
+      } catch (err) {
+        console.warn('Failed to load task stats', err);
+        setTaskStats({ completed: 0, remaining: 0, overdue: 0, total: 0 });
+      } finally {
+        setLoadingTasks(false);
+      }
+    })();
+
+    const onUserUpdated = () => {
+      // recalc when user changes
+      (async () => {
+        try {
+          const { getTasks } = await import('../../services/taskService.js');
+          setLoadingTasks(true);
+          const res = await getTasks();
+          const data = res.data || [];
+          const now = new Date();
+          const completed = data.filter(t => t.status === 'completed').length;
+          const remaining = data.filter(t => t.status !== 'completed').length;
+          const overdue = data.filter(t => t.due_date && new Date(t.due_date) < now && t.status !== 'completed').length;
+          setTaskStats({ completed, remaining, overdue, total: data.length });
+        } catch (err) {
+          setTaskStats({ completed: 0, remaining: 0, overdue: 0, total: 0 });
+        } finally {
+          setLoadingTasks(false);
+        }
+      })();
+    };
+
+    window.addEventListener('user-updated', onUserUpdated);
+    window.addEventListener('tasks-updated', onUserUpdated);
+    return () => { isMounted = false; window.removeEventListener('user-updated', onUserUpdated); window.removeEventListener('tasks-updated', onUserUpdated); };
+  }, []);
 
   return (
     <aside className="w-64 h-screen fixed left-0 top-0 bg-[#020839] text-white p-6">
@@ -83,6 +138,35 @@ function Sidebar() {
             </li>
           );
         })}
+
+        {/* Tasks (role-aware): users => /profile/tasks, admins => /admin/tasks */}
+        <li>
+          <Link
+            to={tasksLink}
+            className={`block px-4 py-2 rounded-lg font-medium ${tasksActive
+              ? "bg-white text-[#020839]"
+              : "text-white hover:bg-[#1e276d]"
+              }`}
+          >
+            <div className="flex items-center justify-between">
+              <span>Tasks</span>
+              <div className="flex items-center gap-2">
+                {loadingTasks ? (
+                  <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {taskStats.overdue > 0 && (
+                      <span className="text-xs bg-red-600 text-white rounded-full px-2 py-0.5">{taskStats.overdue}</span>
+                    )}
+                    {taskStats.remaining > 0 && (
+                      <span className="text-xs bg-white text-[#020839] rounded-full px-2 py-0.5">{taskStats.remaining}</span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </Link>
+        </li>
       </ul>
     </aside>
   );

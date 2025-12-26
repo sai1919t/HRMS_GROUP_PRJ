@@ -31,8 +31,12 @@ const TasksAdmin = () => {
     return false;
   };
 
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
   const loadUsers = async () => {
     try {
+      setIsLoadingUsers(true);
       const res = await getAllUsers();
       setUsers(res.users || res.data?.users || []);
     } catch (err) {
@@ -41,12 +45,15 @@ const TasksAdmin = () => {
         setUsers([]);
         setError(err?.message || JSON.stringify(err));
       }
+    } finally {
+      setIsLoadingUsers(false);
     }
   };
 
   const loadTasks = async () => {
     try {
       setError(null);
+      setIsLoadingTasks(true);
       const res = await getTasks();
       setTasks(res.data || []);
     } catch (err) {
@@ -55,6 +62,8 @@ const TasksAdmin = () => {
         const msg = (err && err.message) || err;
         setError(msg?.error || msg || 'Failed to load tasks');
       }
+    } finally {
+      setIsLoadingTasks(false);
     }
   };
 
@@ -83,7 +92,9 @@ const TasksAdmin = () => {
     try {
       await createTask(form);
       setForm({ title: '', description: '', assigned_to: '', due_date: '' });
-      loadTasks();
+      await loadTasks();
+      // notify sidebar and other parts
+      window.dispatchEvent(new Event('tasks-updated'));
     } catch (err) {
       console.error('Create task failed', err);
       if (handleAuthError(err)) {
@@ -108,16 +119,25 @@ const TasksAdmin = () => {
             <div className="p-4 bg-red-50 text-red-600 rounded">Only Admins can create tasks. Your account does not have permissions to perform this action.</div>
           ) : (
             <form onSubmit={submit} className="space-y-2">
-              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full p-2 border rounded" placeholder="Title" />
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full p-2 border rounded" placeholder="Description" />
-              <select value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} className="w-full p-2 border rounded">
+              <input disabled={isLoadingUsers || !isAdmin} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full p-2 border rounded" placeholder="Title" />
+              <textarea disabled={isLoadingUsers || !isAdmin} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full p-2 border rounded" placeholder="Description" />
+              <select disabled={isLoadingUsers || !isAdmin} value={form.assigned_to} onChange={(e) => setForm({ ...form, assigned_to: e.target.value })} className="w-full p-2 border rounded">
                 <option value="">Assign to</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.fullname} ({u.email})</option>
-                ))}
+                {isLoadingUsers ? (
+                  <option value="">Loading users...</option>
+                ) : users.length === 0 ? (
+                  <option value="">No users available</option>
+                ) : (
+                  users.map(u => (
+                    <option key={u.id} value={u.id}>{u.fullname} ({u.email})</option>
+                  ))
+                )}
               </select>
-              <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full p-2 border rounded" />
-              <button className="bg-blue-600 text-white px-4 py-2 rounded">Create</button>
+              <input disabled={isLoadingUsers || !isAdmin} type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full p-2 border rounded" />
+              <button disabled={isLoadingUsers || !isAdmin} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2">
+                {isLoadingUsers ? <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" /> : null}
+                Create
+              </button>
             </form>
           )}
         </div>
@@ -147,8 +167,8 @@ const TasksAdmin = () => {
                   <div className="text-sm text-gray-500">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={async () => { try { await updateTask(task.id, { status: 'completed', percent_completed: 100 }); loadTasks(); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Mark done</button>
-                  <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); loadTasks(); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
+                  <button onClick={async () => { try { await updateTask(task.id, { status: 'completed', percent_completed: 100 }); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to update task'); } } }} className="px-3 py-1 rounded bg-green-600 text-white text-sm">Mark done</button>
+                  <button onClick={async () => { if (!confirm('Delete task?')) return; try { await deleteTask(task.id); await loadTasks(); window.dispatchEvent(new Event('tasks-updated')); } catch (err) { if (handleAuthError(err)) { alert('Session expired. Please login again.'); return; } if (err && err.message) { alert(err.message); } else { alert('Failed to delete task'); } } }} className="px-3 py-1 rounded bg-red-100 text-red-600 text-sm">Delete</button>
                 </div>
               </div>
             ))}
