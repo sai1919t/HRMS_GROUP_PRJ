@@ -12,6 +12,35 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
     }
   });
 
+  const [tasks, setTasks] = useState([]);
+  const [stats, setStats] = useState({ activeGoals: 0, progress: 0, completed: 0, dueTasks: 0 });
+
+  useEffect(() => {
+    // load tasks for this user when component mounts
+    let isMounted = true;
+    (async () => {
+      try {
+        const { getTasks } = await import('../../services/taskService.js');
+        const resp = await getTasks();
+        if (!isMounted) return;
+        const data = resp.data || [];
+        setTasks(data);
+
+        // compute basic stats
+        const dueTasks = data.filter(t => t.status !== 'completed').length;
+        const completed = data.filter(t => t.status === 'completed').length;
+        const progress = data.length > 0 ? Math.round((data.reduce((s, t) => s + (t.percent_completed || 0), 0) / (data.length * 100)) * 100) : 0;
+        const activeGoals = data.filter(t => t.status === 'in_progress' || (t.status === 'pending' && (t.due_date || t.percent_completed))).length;
+        setStats({ activeGoals, progress, completed, dueTasks });
+      } catch (err) {
+        console.error('Failed to load tasks', err);
+      }
+    })();
+
+    return () => { isMounted = false; };
+  }, []);
+
+
   // If a user object is passed via props (viewing another profile), prefer it
   useEffect(() => {
     if (userOverride) {
@@ -134,10 +163,10 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
               <h3 className="text-lg font-semibold mb-3">Work Overflow</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 ">
                 {[
-                  { label: "Active goals", value: "3" },
-                  { label: "Progress", value: "40%" },
-                  { label: "Completed", value: "6" },
-                  { label: "Due Tasks", value: "2" }
+                  { label: "Active goals", value: stats.activeGoals || 0 },
+                  { label: "Progress", value: stats.progress ? `${stats.progress}%` : '0%' },
+                  { label: "Completed", value: stats.completed || 0 },
+                  { label: "Due Tasks", value: stats.dueTasks || 0 }
                 ].map((item, index) => (
                   <div
                     key={index}
@@ -158,17 +187,38 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
               <h3 className="text-lg font-semibold mb-3">Complete Due Tasks</h3>
 
               <div className="space-y-3">
-                {[
-                  { title: "Schedule management level meeting", members: "+7 members", percent: "10%" },
-                  { title: "Upload report for the month October", members: "+2 members", percent: "50%" }
-                ].map((task, index) => (
-                  <div key={index} className="bg-[#e6f0fb] p-4 rounded-lg flex justify-between items-center shadow-md">
+                {tasks.length === 0 && (
+                  <div className="bg-[#e6f0fb] p-4 rounded-lg shadow-md text-gray-600">No due tasks assigned</div>
+                )}
+
+                {tasks.map((task, index) => (
+                  <div key={task.id || index} className="bg-[#e6f0fb] p-4 rounded-lg flex justify-between items-center shadow-md">
                     <div>
                       <p className="font-semibold">{index + 1}. {task.title}</p>
-                      <p className="text-sm font-medium mt-1">{task.members}</p>
+                      <p className="text-sm font-medium mt-1">Assigned by: {task.created_by_name || '—'}</p>
+                      <p className="text-sm text-gray-500 mt-1">Due: {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</p>
                     </div>
-                    <div className="w-11 h-11 rounded-full bg-[#6d5dfc] flex items-center justify-center text-white text-xs font-semibold">
-                      {task.percent}
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-11 rounded-full bg-[#6d5dfc] flex items-center justify-center text-white text-xs font-semibold">
+                        {task.percent_completed ? `${task.percent_completed}%` : '—'}
+                      </div>
+
+                      {task.status !== 'completed' ? (
+                        <button onClick={async () => {
+                          try {
+                            const { updateTask } = await import('../../services/taskService.js');
+                            await updateTask(task.id, { status: 'completed', percent_completed: 100 });
+                            // optimistic update
+                            setTasks(prev => prev.map(p => p.id === task.id ? { ...p, status: 'completed', percent_completed: 100 } : p));
+                            setStats(prev => ({ ...prev, completed: prev.completed + 1, dueTasks: Math.max(prev.dueTasks - 1, 0) }));
+                          } catch (err) {
+                            console.error('Failed to mark complete', err);
+                          }
+                        }} className="px-3 py-1 rounded-md bg-green-600 text-white text-sm">Mark complete</button>
+                      ) : (
+                        <span className="px-2 py-1 rounded-md bg-gray-200 text-sm">Completed</span>
+                      )}
                     </div>
                   </div>
                 ))}

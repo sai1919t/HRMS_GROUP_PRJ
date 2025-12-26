@@ -20,6 +20,7 @@ import { createApplicationsTable } from "./models/application.model.js";
 import { createOffersTable } from "./models/offer.model.js";
 import { createInterviewsTable } from "./models/interview.model.js";
 import { createEventTable } from "./models/event.model.js";
+import { authMiddleware } from "./middleware/auth.middleware.js";
 
 import { Server } from "socket.io";
 import dotenv from "dotenv";
@@ -155,6 +156,13 @@ io.on("connection", (socket) => {
 
 import { createMeeting, createMeetingTable, deleteMeeting, getMeetings } from "./models/meeting.model.js";
 import { updateUserProfile } from "./models/user.model.js";
+import { createTasksTable } from "./models/task.model.js";
+import {
+  createTaskController,
+  getTasksController,
+  updateTaskController,
+  deleteTaskController
+} from "./controller/task.controller.js";
 
 // ... existing imports ...
 
@@ -241,6 +249,25 @@ app.delete("/api/meetings/:id", async (req, res) => {
     }
 });
 
+// --- TASKS API ---
+app.post("/api/tasks", authMiddleware, async (req, res) => {
+    // create task (admin only)
+    return await createTaskController(req, res);
+});
+
+app.get("/api/tasks", authMiddleware, async (req, res) => {
+    // get tasks (admin sees all, regular users see assigned tasks)
+    return await getTasksController(req, res);
+});
+
+app.put("/api/tasks/:id", authMiddleware, async (req, res) => {
+    return await updateTaskController(req, res);
+});
+
+app.delete("/api/tasks/:id", authMiddleware, async (req, res) => {
+    return await deleteTaskController(req, res);
+});
+
 // Update Profile API
 app.put("/api/users/profile/:id", async (req, res) => {
     try {
@@ -282,6 +309,7 @@ const initDb = async () => {
     await createInterviewsTable();
     await createOffersTable();
     await createMessagesTable();
+    await createTasksTable();
     // create points table
     try {
         const { createPointsTable } = await import('./models/points.model.js');

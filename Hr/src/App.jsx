@@ -37,6 +37,7 @@ import Contact from './pages/settings/Contact'
 import Feedback from './pages/settings/Feedback'
 import RateApp from './pages/RateApp'
 import RecruitmentLayout from "./pages/recruitment/RecruitmentLayout";
+import TasksAdmin from './pages/admin/Tasks'
 import Applications from "./pages/recruitment/Applications";
 import Interviews from "./pages/recruitment/Interviews";
 import Offers from "./pages/recruitment/Offers";
@@ -84,6 +85,7 @@ function App() {
           <Route path='/profile/referrals' element={<ProtectedRoute><Layout><ProfileReferrals /></Layout></ProtectedRoute>} />
 
           <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
+          <Route path="/admin/tasks" element={<ProtectedRoute><Layout><TasksAdmin /></Layout></ProtectedRoute>} />
         </Routes>
       </div>
     </>
