@@ -16,9 +16,9 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
   const [stats, setStats] = useState({ activeGoals: 0, progress: 0, completed: 0, dueTasks: 0 });
 
   useEffect(() => {
-    // load tasks for this user when component mounts
     let isMounted = true;
-    (async () => {
+
+    const loadTasks = async () => {
       try {
         const { getTasks } = await import('../../services/taskService.js');
         const resp = await getTasks();
@@ -26,18 +26,31 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
         const data = resp.data || [];
         setTasks(data);
 
-        // compute basic stats
-        const dueTasks = data.filter(t => t.status !== 'completed').length;
+        // recompute stats with richer, clearer semantics
+        const now = new Date();
         const completed = data.filter(t => t.status === 'completed').length;
-        const progress = data.length > 0 ? Math.round((data.reduce((s, t) => s + (t.percent_completed || 0), 0) / (data.length * 100)) * 100) : 0;
+        const totalTasks = data.length;
+        const dueTasks = data.filter(t => t.status !== 'completed' && t.due_date && new Date(t.due_date) <= now).length;
         const activeGoals = data.filter(t => t.status === 'in_progress' || (t.status === 'pending' && (t.due_date || t.percent_completed))).length;
-        setStats({ activeGoals, progress, completed, dueTasks });
+        const progress = data.length > 0 ? Math.round(data.reduce((s, t) => s + (Number(t.percent_completed) || 0), 0) / data.length) : 0;
+        const completedRate = totalTasks ? Math.round((completed / totalTasks) * 100) : 0;
+        // Profile completion = weighted average of progress and completed rate
+        const profileCompletion = Math.min(100, Math.round((progress * 0.6) + (completedRate * 0.4)));
+        const score = profileCompletion; // use same metric for circular score
+
+        setStats({ activeGoals, progress, completed, dueTasks, totalTasks, completedRate, profileCompletion, score });
       } catch (err) {
         console.error('Failed to load tasks', err);
       }
-    })();
+    };
 
-    return () => { isMounted = false; };
+    // initial load
+    loadTasks();
+
+    // refresh when tasks are updated elsewhere (admin, other pages)
+    window.addEventListener('tasks-updated', loadTasks);
+
+    return () => { isMounted = false; window.removeEventListener('tasks-updated', loadTasks); };
   }, []);
 
 
@@ -139,9 +152,9 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
                     )}
                   </div>
 
-                  <p className="mt-2 text-sm text-gray-600">Profile Completion 70%</p>
+                  <p className="mt-2 text-sm text-gray-600">Profile Completion {stats.profileCompletion ?? 0}%</p>
                   <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                    <div className="bg-[#35A5F5] h-2 rounded-full w-[70%]" />
+                    <div className="bg-[#35A5F5] h-2 rounded-full" style={{ width: `${stats.profileCompletion ?? 0}%` }} />
                   </div>
                 </div>
 
@@ -349,11 +362,11 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
                       {/* background circle */}
                       <path className="text-[#C3DBFF]" stroke="currentColor" strokeWidth="3.5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                       {/* progress arc */}
-                      <path className="text-[#8B5CF6]" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray="80 100" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <path className="text-[#8B5CF6]" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${stats.score ?? 0} 100`} fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
                     </svg>
 
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-xl font-bold">80%</span>
+                      <span className="text-xl font-bold">{stats.score ?? 0}%</span>
                       <span className="text-xs text-gray-600 -mt-0.5">Score</span>
                     </div>
                   </div>
@@ -378,29 +391,20 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
 
                 {/* Statistic cards */}
                 <div className="space-y-3">
-                  {[
-                    {
-                      title: "Performance",
-                      subtitle: "Based on work",
-                      percent: "82%",
-                      badge: null,
-                    },
-                    {
-                      title: "Success",
-                      subtitle: "Based on work",
-                      percent: "91%",
-                      badge: "New goals",
-                    },
-                    {
-                      title: "Innovation",
-                      subtitle: "worked ideas",
-                      percent: "13%",
-                      badge: null,
-                    },
-                  ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-[#E7F3FF] rounded-2xl px-3 py-3 flex items-center justify-between shadow-sm">
+                  {(() => {
+                    const total = stats.totalTasks || 0;
+                    const completedRate = total ? Math.round((stats.completed / total) * 100) : 0;
+                    const innovationPercent = total ? Math.round((stats.dueTasks / total) * 100) : 0;
+                    const statItems = [
+                      { title: 'Performance', subtitle: 'Based on work', percent: `${stats.progress ?? 0}%`, badge: null },
+                      { title: 'Success', subtitle: 'Based on tasks', percent: `${completedRate}%`, badge: (total && stats.completed < total) ? 'Active' : null },
+                      { title: 'Innovation', subtitle: 'Pending/Due', percent: `${innovationPercent}%`, badge: stats.dueTasks > 0 ? `${stats.dueTasks} due` : null },
+                    ];
+
+                    return statItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-[#E7F3FF] rounded-2xl px-3 py-3 flex items-center justify-between shadow-sm">
                     {/* left text & percent chip */}
                     <div className="flex flex-col justify-between">
                       <div>
@@ -429,7 +433,8 @@ const ProfilePage = ({ onEditProfile, userOverride }) => {
                       <polyline points="0,24 12,20 24,22 36,14 48,18 60,10 72,14 80,6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                ))}
+                ))
+                  })()}
               </div>
             </div>
 
