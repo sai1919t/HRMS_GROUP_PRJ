@@ -244,11 +244,26 @@ function EmployeesPage() {
                               {user.status || 'ACTIVE'}
                             </span>
                             {user.taskSummary && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                <span className="mr-3">{user.taskSummary.total || 0} tasks</span>
-                                <span className="text-green-600 mr-3">{user.taskSummary.completed || 0} done</span>
-                                <span className="text-red-600">{user.taskSummary.overdue || 0} overdue</span>
-                              </div>
+                              (user.taskSummary.total || 0) > 0 ? (
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                                    <strong className="text-sm">{user.taskSummary.total || 0}</strong>
+                                    <span className="hidden sm:inline">tasks</span>
+                                  </span>
+                                  <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700">
+                                    <strong className="text-sm">{user.taskSummary.completed || 0}</strong>
+                                    <span className="hidden sm:inline">done</span>
+                                  </span>
+                                  {user.taskSummary.overdue > 0 && (
+                                    <span className="inline-flex items-center gap-2 px-2 py-0.5 rounded-full text-xs bg-red-50 text-red-700">
+                                      <strong className="text-sm">{user.taskSummary.overdue}</strong>
+                                      <span className="hidden sm:inline">overdue</span>
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400 mt-2">No open tasks</div>
+                              )
                             )}
                           </div>
                         </td>
