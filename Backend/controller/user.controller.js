@@ -136,13 +136,78 @@ export const logout = async (req, res) => {
 export const getAllUsers = async (req, res) => {
     try {
         const users = await getAllUsersModel();
+        const now = new Date();
+        // Derive status from admin-set status or last_activity timestamps
+        const normalized = users.map(u => {
+                const raw = (u.status || '').toString().trim().toUpperCase();
+            // If admin explicitly set INACTIVE, respect it (manual disabling)
+            if (raw === 'INACTIVE') return { ...u, status: 'INACTIVE', raw_status: raw };
+
+            // If we have a live socket connection for this user, prefer that as ACTIVE
+            let computed = 'UNKNOWN';
+            try {
+                if (global && global.onlineUsers && global.onlineUsers.has(String(u.id)) && raw !== 'INACTIVE') {
+                    computed = 'ACTIVE';
+                } else {
+                    // Compute from last_activity if present, otherwise mark as INACTIVE
+                    const last = u.last_activity ? new Date(u.last_activity) : null;
+                    if (last) {
+                        const diffSecs = Math.floor((now - last) / 1000);
+                        // ACTIVE if within 30 seconds, IDLE if within 5 minutes, otherwise INACTIVE
+                        if (diffSecs <= 30) {
+                            computed = 'ACTIVE';
+                        } else if (diffSecs <= 5 * 60) {
+                            computed = 'IDLE';
+                        } else {
+                            computed = 'INACTIVE';
+                        }
+                    } else {
+                        // No activity recorded -> treat as INACTIVE so offline users appear inactive
+                        computed = 'INACTIVE';
+                    }
+                }
+            } catch (e) {
+                // Fallback to last_activity computation on error
+                const last = u.last_activity ? new Date(u.last_activity) : null;
+                if (last) {
+                    const diffSecs = Math.floor((now - last) / 1000);
+                    if (diffSecs <= 30) computed = 'ACTIVE';
+                    else if (diffSecs <= 5 * 60) computed = 'IDLE';
+                    else computed = 'INACTIVE';
+                } else computed = 'INACTIVE';
+            }
+
+            return { ...u, status: computed, raw_status: raw || null };
+        });
+
         res.status(200).json({
             success: true,
-            users
+            users: normalized
         });
     } catch (error) {
         console.error("❌ Get All Users Error:", error.message);
         res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// heartbeat endpoint to update current user's last_activity
+export const heartbeat = async (req, res) => {
+    try {
+        const uid = req.user && req.user.id;
+        if (!uid) return res.status(401).json({ message: 'Unauthorized' });
+        await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [uid]);
+        // Broadcast presence update via socket.io if available
+        try {
+            if (global.io) {
+                global.io.emit('presence:update', { userId: String(uid), status: 'ACTIVE', last_activity: new Date().toISOString() });
+            }
+        } catch (e) {
+            console.warn('Failed to emit presence update', e);
+        }
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Heartbeat error', err);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
@@ -169,9 +234,10 @@ export const updateUser = async (req, res) => {
         const isSelf = req.user && String(req.user.id) === String(id);
         const isAdmin = req.user && req.user.role === 'Admin'; // Assuming req.user is populated with role
 
+        // Allow admins to update other users as well as users updating themselves
         // We might not have role in req.user yet depending on middleware. 
-        // For now, stick to self update or allow if we implement admin check middleware later.
-        if (!isSelf) {
+        // For now, allow update if it's the user themselves or an Admin.
+        if (!isSelf && !isAdmin) {
             return res.status(403).json({ message: "Forbidden" });
         }
 
@@ -188,6 +254,14 @@ export const updateUser = async (req, res) => {
         }
 
         const updatedUser = await updateUserService(id, updates);
+        // If status was updated, broadcast to connected clients
+        if (updates.status && global && global.io) {
+            try {
+                global.io.emit('presence:update', { userId: String(updatedUser.id), status: updatedUser.status, last_activity: updatedUser.last_activity || null });
+            } catch (e) {
+                console.warn('Failed to emit status update', e);
+            }
+        }
         res.status(200).json({ message: "User updated", user: updatedUser });
     } catch (error) {
         console.error("❌ Update User Error:", error.message);

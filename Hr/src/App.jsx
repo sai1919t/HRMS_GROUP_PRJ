@@ -47,7 +47,15 @@ import RedemptionPage from './pages/Redeem'
 
 
 
+import { useEffect } from 'react';
+import { initPresence } from './utils/presence';
+
 function App() {
+  useEffect(() => {
+    const cleanup = initPresence();
+    return () => cleanup && cleanup();
+  }, []);
+
   return (
     <>
       <div>

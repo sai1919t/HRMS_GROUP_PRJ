@@ -40,18 +40,48 @@ const io = new Server(server, {
         methods: ["GET", "POST"],
     },
 });
+// Expose on global so other modules (controllers) can emit events without circular imports
+global.io = io;
 
 const onlineUsers = new Map(); // Store online users: userId -> socketId
+// Also expose onlineUsers map so controllers can read it when deriving status
+global.onlineUsers = onlineUsers;
+
+import pool from './db/db.js';
 
 io.on("connection", (socket) => {
     console.log(`User Connected: ${socket.id}`);
 
     // Handle user login/online status
-    socket.on("user_connected", (userId) => {
+    socket.on("user_connected", async (userId) => {
         const idStr = String(userId); // Force string for consistency
         onlineUsers.set(idStr, socket.id);
         io.emit("online_users", Array.from(onlineUsers.keys()));
-        console.log(`User ${idStr} is online. Total online: ${onlineUsers.size}`);
+
+        // Update DB last_activity immediately so API calls reflect live connections
+        try {
+            await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [idStr]);
+            const { rows } = await pool.query('SELECT last_activity FROM users WHERE id = $1', [idStr]);
+            const last = rows[0] && rows[0].last_activity ? new Date(rows[0].last_activity).toISOString() : new Date().toISOString();
+            io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
+            if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} is online. Total online: ${onlineUsers.size}`);
+        } catch (err) {
+            console.warn('Failed to update last_activity on connect', err);
+            io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: new Date().toISOString() });
+        }
+    });
+
+    // Handle disconnects and mark users offline immediately
+    socket.on('disconnect', () => {
+        // Find any userIds mapped to this socket and remove them
+        for (const [uid, sid] of onlineUsers.entries()) {
+            if (sid === socket.id) {
+                onlineUsers.delete(uid);
+                io.emit("online_users", Array.from(onlineUsers.keys()));
+                io.emit('presence:update', { userId: uid, status: 'INACTIVE', last_activity: null });
+                console.log(`User ${uid} disconnected. Total online: ${onlineUsers.size}`);
+            }
+        }
     });
 
     // Join a chat room (optional, for direct messages)
@@ -297,6 +327,16 @@ app.put("/api/users/profile/:id", async (req, res) => {
         console.error("Error updating profile:", err);
         res.status(500).json({ error: "Failed to update profile" });
     }
+});
+
+// Heartbeat endpoint (user presence)
+app.post('/api/users/heartbeat', authMiddleware, async (req, res) => {
+  try {
+    return await heartbeat(req, res);
+  } catch (err) {
+    console.error('Heartbeat route error', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
 });
 // --------------------
 

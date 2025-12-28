@@ -19,8 +19,6 @@ function EmployeesPage() {
       setCurrentUser(JSON.parse(userStr));
     }
 
-    fetchUsers();
-
     // Refresh users (and points) when activity updates (e.g., points transfers)
     const onActivity = () => fetchUsers();
     window.addEventListener('activity:updated', onActivity);
@@ -29,9 +27,21 @@ function EmployeesPage() {
     const onTasksUpdated = () => fetchUsers();
     window.addEventListener('tasks-updated', onTasksUpdated);
 
+    // Presence updates from socket are re-emitted as DOM events
+    const onPresence = (e) => {
+      const d = e.detail;
+      setUsers(prev => prev.map(u => (String(u.id) === String(d.userId) ? { ...u, status: d.status, last_activity: d.last_activity } : u)));
+    };
+    // Attach presence listener before the initial fetch so any immediate presence updates during fetch are handled
+    window.addEventListener('presence:update', onPresence);
+
+    // Fetch user list after we are listening for presence updates to avoid missing quick presence events
+    fetchUsers();
+
     return () => {
       window.removeEventListener('activity:updated', onActivity);
       window.removeEventListener('tasks-updated', onTasksUpdated);
+      window.removeEventListener('presence:update', onPresence);
     };
   }, []);
 
@@ -63,7 +73,19 @@ function EmployeesPage() {
         } catch (err) {
           console.warn('Failed to fetch tasks summary', err);
         }
-        setUsers(usersList);
+        // Optimistically mark the current client as ACTIVE locally so they don't briefly appear inactive on refresh
+        try {
+          const selfStr = localStorage.getItem('user');
+          if (selfStr) {
+            const self = JSON.parse(selfStr);
+            const updated = usersList.map(u => (String(u.id) === String(self.id) ? { ...u, status: 'ACTIVE' } : u));
+            setUsers(updated);
+          } else {
+            setUsers(usersList);
+          }
+        } catch (e) {
+          setUsers(usersList);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -94,6 +116,34 @@ function EmployeesPage() {
     } catch (err) {
       console.error(err);
       alert("Error deleting user");
+    }
+  };
+
+  // Toggle a user's status (Admin only)
+  const handleToggleStatus = async (id, currentStatus) => {
+    if (!isAdmin) return;
+    const newStatus = (currentStatus === 'ACTIVE') ? 'INACTIVE' : 'ACTIVE';
+    if (!window.confirm(`Set user #${id} status to ${newStatus}?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.user;
+        setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.message || 'Failed to update status');
+      }
+    } catch (err) {
+      console.error('Failed to update status', err);
+      alert('Error updating status');
     }
   };
 
@@ -201,7 +251,11 @@ function EmployeesPage() {
                   ) : filteredUsers.length === 0 ? (
                     <tr><td colSpan="6" className="p-8 text-center text-gray-500">No employees found.</td></tr>
                   ) : (
-                    filteredUsers.map((user) => (
+                    filteredUsers.map((user) => {
+                      const rawStatus = user.status || user.employee_status || user.status_of_employee || user.status_of_employment || '';
+                      const status = (rawStatus || '').toString().trim().toUpperCase();
+                      const statusLabel = status || 'UNKNOWN';
+                      return (
                       <tr key={user.id} className="hover:bg-gray-50/80 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-4">
@@ -237,12 +291,15 @@ function EmployeesPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
-                              user.status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-gray-100 text-gray-700'
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
+                              status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' : status === 'IDLE' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-gray-100 text-gray-700'
                             }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${user.status === 'ACTIVE' ? 'bg-green-500' : user.status === 'INACTIVE' ? 'bg-red-500' : 'bg-gray-400'}`}></span>
-                              {user.status || 'ACTIVE'}
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'ACTIVE' ? 'bg-green-500' : status === 'INACTIVE' ? 'bg-red-500' : status === 'IDLE' ? 'bg-yellow-500' : 'bg-gray-400'}`}></span>
+                              {statusLabel}
                             </span>
+                            {isAdmin && (
+                              <button onClick={() => handleToggleStatus(user.id, status)} className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-50 border text-gray-600 hover:bg-gray-100">{(status === 'ACTIVE' || status === 'IDLE') ? 'Set Inactive' : 'Set Active'}</button>
+                            )}
                             {user.taskSummary && (
                               (user.taskSummary.total || 0) > 0 ? (
                                 <div className="flex items-center gap-2 mt-2">
@@ -288,7 +345,8 @@ function EmployeesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   )}
                 </tbody>
               </table>

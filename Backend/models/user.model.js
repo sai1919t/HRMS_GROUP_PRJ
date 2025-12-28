@@ -31,6 +31,7 @@ export const createUserTable = async () => {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'Employee'`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT`);
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_city VARCHAR(255) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS location_country VARCHAR(255) DEFAULT ''`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0`);
@@ -147,7 +148,7 @@ export const updateUser = async (id, updates) => {
 };
 
 export const getAllUsers = async () => {
-  const query = `SELECT id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, gender, points, role, created_at FROM users ORDER BY points DESC, fullname`;
+  const query = `SELECT id, employee_id, fullname, email, designation, job_title, department, phone, date_of_joining, status, profile_picture, gender, points, role, created_at, last_activity FROM users ORDER BY points DESC, fullname`;
   const { rows } = await pool.query(query);
   return rows;
 };
