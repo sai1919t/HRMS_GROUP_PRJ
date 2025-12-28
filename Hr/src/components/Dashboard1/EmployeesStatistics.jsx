@@ -62,11 +62,15 @@ export default function HiringStatsChart() {
 
   return (
     <div className="w-full h-[400px] bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900">
-          Monthly Hiring, Attrition & Recruitment
-        </h2>
-        <p className="text-sm text-gray-500">Overview of employee movement and recruitment activity</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Monthly Hiring & Resignations</h2>
+          <p className="text-sm text-gray-500">Overview of employee movement and recruitment activity</p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-gray-500">Resigned (YTD)</div>
+          <div className="text-xl font-bold text-red-600">{data.reduce((s, d) => s + (d.attrition || 0), 0)}</div>
+        </div>
       </div>
 
       {loading ? (
@@ -123,7 +127,7 @@ export default function HiringStatsChart() {
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 6 }}
-                name="Attrition"
+                name="Resigned"
               />
 
               <Line

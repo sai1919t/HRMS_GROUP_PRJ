@@ -37,7 +37,7 @@ export default function StatsCards({ stats }) {
     {
       title: "Resigned Employees",
       value: resignedEmployees,
-      label: "resigned / inactive",
+      label: "resigned employees",
       icon: <UserMinus size={20} className="text-orange-600" />,
       bg: "bg-orange-50"
     },

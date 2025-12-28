@@ -80,9 +80,13 @@ export const getDashboardStats = async () => {
                 [m, year]
             );
 
-            // attrition: count users with resigned_at in the month/year
+            // attrition: count resignations in the month/year from both active users table and archived snapshots
             const attrRes = await pool.query(
-                `SELECT COUNT(*) FROM users WHERE resigned_at IS NOT NULL AND EXTRACT(MONTH FROM resigned_at) = $1 AND EXTRACT(YEAR FROM resigned_at) = $2`,
+                `SELECT COUNT(*) FROM (
+                    SELECT resigned_at FROM users
+                    UNION ALL
+                    SELECT resigned_at FROM archived_users
+                ) t WHERE resigned_at IS NOT NULL AND EXTRACT(MONTH FROM resigned_at) = $1 AND EXTRACT(YEAR FROM resigned_at) = $2`,
                 [m, year]
             );
 
@@ -109,9 +113,12 @@ export const getOverviewStats = async () => {
         const totalEmpQuery = await pool.query("SELECT COUNT(*) FROM users WHERE status != 'Resigned' AND status != 'Inactive'");
         const totalEmployees = parseInt(totalEmpQuery.rows[0].count);
 
-        // 2. Resigned Employees (only truly resigned users)
-        const resignedQuery = await pool.query("SELECT COUNT(*) FROM users WHERE status = 'Resigned'");
-        const resignedEmployees = parseInt(resignedQuery.rows[0].count);
+        // 2. Resigned Employees: include both users marked 'Resigned' *and* archived resignations
+        const resignedQuery = await pool.query("SELECT COUNT(*) FROM users WHERE UPPER(status) = 'RESIGNED'");
+        const resignedInUsers = parseInt(resignedQuery.rows[0].count, 10);
+        const archivedResignedQuery = await pool.query("SELECT COUNT(*) FROM archived_users WHERE resigned_at IS NOT NULL");
+        const archivedResigned = parseInt(archivedResignedQuery.rows[0].count, 10);
+        const resignedEmployees = resignedInUsers + archivedResigned;
 
         // 3. Job Views (Sum of views column in jobs)
         const jobViewsQuery = await pool.query("SELECT COALESCE(SUM(views), 0) as total_views FROM jobs");
