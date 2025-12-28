@@ -109,8 +109,8 @@ export const getOverviewStats = async () => {
         const totalEmpQuery = await pool.query("SELECT COUNT(*) FROM users WHERE status != 'Resigned' AND status != 'Inactive'");
         const totalEmployees = parseInt(totalEmpQuery.rows[0].count);
 
-        // 2. Resigned Employees
-        const resignedQuery = await pool.query("SELECT COUNT(*) FROM users WHERE status = 'Resigned' OR status = 'Inactive'");
+        // 2. Resigned Employees (only truly resigned users)
+        const resignedQuery = await pool.query("SELECT COUNT(*) FROM users WHERE status = 'Resigned'");
         const resignedEmployees = parseInt(resignedQuery.rows[0].count);
 
         // 3. Job Views (Sum of views column in jobs)

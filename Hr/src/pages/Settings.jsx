@@ -41,12 +41,21 @@ const SettingsPage = () => {
             className={`flex items-center justify-between px-6 py-4 ${
               index !== settingsItems.length - 1 ? 'border-b border-gray-100' : ''
             } ${item.isLogout ? 'hover:bg-red-50 cursor-pointer' : 'hover:bg-gray-50 cursor-pointer'}`}
-            onClick={(e) => {
+            onClick={async (e) => {
               // prevent toggle click from bubbling
               if (item.hasToggle) return;
               if (item.onToggle) return;
-              if (item.path) navigate(item.path);
-              // handle logout or other actions here if needed
+              if (item.path) return navigate(item.path);
+
+              // Handle logout
+              if (item.isLogout) {
+                try {
+                  const { logout } = await import('../services/auth.service.js');
+                  await logout();
+                } catch (err) {
+                  console.error('Logout failed', err);
+                }
+              }
             }}
           >
             <div className="flex items-center">

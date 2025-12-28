@@ -174,9 +174,39 @@ const ProfilePage = ({ onEditProfile, userOverride, tasksOverride }) => {
 
                   <div className="mt-5 flex gap-4">
                     {!userOverride && (
-                      <button onClick={onEditProfile} className="mt-3 bg-[#35A5F5] text-white px-4 py-2 rounded-md text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition cursor-pointer">
-                        Edit Profile
-                      </button>
+                      <>
+                        <button onClick={onEditProfile} className="mt-3 bg-[#35A5F5] text-white px-4 py-2 rounded-md text-sm font-medium shadow-md hover:bg-blue-700 hover:shadow-lg active:scale-95 transition cursor-pointer">
+                          Edit Profile
+                        </button>
+
+                        <button onClick={async () => {
+                          if (!confirm('Are you sure you want to resign? This will archive and delete your account and log you out.')) return;
+                          try {
+                            const reason = prompt('Please provide a reason for resignation (optional):');
+                            const token = localStorage.getItem('token');
+                            const uid = user?.id;
+                            if (!token || !uid) return alert('Not authenticated');
+                            const res = await fetch(`http://localhost:3000/api/users/${uid}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ status: 'Resigned', resignation_reason: reason })
+                            });
+                            if (res.ok) {
+                              // log out after resignation
+                              const { logout } = await import('../../services/auth.service.js');
+                              await logout();
+                            } else {
+                              const err = await res.json().catch(() => null);
+                              alert(err?.message || 'Failed to resign');
+                            }
+                          } catch (err) {
+                            console.error('Resign failed', err);
+                            alert('Error processing resignation');
+                          }
+                        }} className="mt-3 bg-red-100 text-red-700 px-4 py-2 rounded-md text-sm font-medium shadow-sm hover:bg-red-200 active:scale-95 transition cursor-pointer">
+                          Resign
+                        </button>
+                      </>
                     )}
                   </div>
 

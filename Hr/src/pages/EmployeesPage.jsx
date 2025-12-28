@@ -30,7 +30,15 @@ function EmployeesPage() {
     // Presence updates from socket are re-emitted as DOM events
     const onPresence = (e) => {
       const d = e.detail;
-      setUsers(prev => prev.map(u => (String(u.id) === String(d.userId) ? { ...u, status: d.status, last_activity: d.last_activity } : u)));
+      setUsers(prev => prev.map(u => {
+        if (String(u.id) !== String(d.userId)) return u;
+        const currRaw = (u.raw_status || u.status || '').toString().trim().toUpperCase();
+        // Do not let ACTIVE/IDLE/INACTIVE overwrite a user explicitly marked RESIGNED
+        if (currRaw === 'RESIGNED' && d.status !== 'RESIGNED') {
+          return { ...u, last_activity: d.last_activity || u.last_activity };
+        }
+        return { ...u, status: d.status, last_activity: d.last_activity };
+      }));
     };
     // Attach presence listener before the initial fetch so any immediate presence updates during fetch are handled
     window.addEventListener('presence:update', onPresence);
@@ -78,7 +86,13 @@ function EmployeesPage() {
           const selfStr = localStorage.getItem('user');
           if (selfStr) {
             const self = JSON.parse(selfStr);
-            const updated = usersList.map(u => (String(u.id) === String(self.id) ? { ...u, status: 'ACTIVE' } : u));
+            const updated = usersList.map(u => {
+              if (String(u.id) !== String(self.id)) return u;
+              const curr = (u.status || '').toString().trim().toUpperCase();
+              // don't overwrite a resigned status
+              if (curr === 'RESIGNED') return u;
+              return { ...u, status: 'ACTIVE' };
+            });
             setUsers(updated);
           } else {
             setUsers(usersList);
@@ -147,6 +161,60 @@ function EmployeesPage() {
     }
   };
 
+  // Admin: mark a user as resigned (archive & delete)
+  const handleMarkResigned = async (id) => {
+    if (!isAdmin) return;
+    if (!window.confirm(`Mark user #${id} as Resigned and archive their data?`)) return;
+
+    try {
+      const reason = prompt('Reason for resignation (optional):');
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'Resigned', resignation_reason: reason })
+      });
+
+      if (res.ok) {
+        // user removed from DB; remove locally
+        setUsers(prev => prev.filter(u => u.id !== id));
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.message || 'Failed to mark resigned');
+      }
+    } catch (err) {
+      console.error('Failed to mark resigned', err);
+      alert('Error marking resigned');
+    }
+  };
+
+  // Admin: Reinstate a resigned user
+  const handleReinstate = async (id) => {
+    if (!isAdmin) return;
+    if (!window.confirm(`Reinstate user #${id} to Active status?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3000/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: 'ACTIVE' })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const updated = json.user;
+        setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.message || 'Failed to reinstate');
+      }
+    } catch (err) {
+      console.error('Failed to reinstate', err);
+      alert('Error reinstating user');
+    }
+  };
+
   const filteredUsers = users.filter(u =>
     u.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -191,13 +259,17 @@ function EmployeesPage() {
 
             <div className="flex gap-3">
               {isAdmin && (
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-200 transition-all transform hover:-translate-y-0.5"
-                >
-                  <Plus size={18} />
-                  Add Employee
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium shadow-lg shadow-blue-200 transition-all transform hover:-translate-y-0.5"
+                  >
+                    <Plus size={18} />
+                    Add Employee
+                  </button>
+
+                  <button onClick={() => navigate('/archived-users')} className="flex items-center gap-2 bg-orange-50 hover:bg-orange-100 text-orange-700 px-4 py-2.5 rounded-xl font-medium border border-orange-100 transition-all">Archived</button>
+                </>
               )}
             </div>
           </div>
@@ -292,13 +364,22 @@ function EmployeesPage() {
                         <td className="px-6 py-4">
                           <div>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${status === 'ACTIVE' ? 'bg-green-50 text-green-700 border border-green-100' :
-                              status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' : status === 'IDLE' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : 'bg-gray-100 text-gray-700'
+                              status === 'INACTIVE' ? 'bg-red-50 text-red-700 border border-red-100' : status === 'IDLE' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' : status === 'RESIGNED' ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'bg-gray-100 text-gray-700'
                             }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'ACTIVE' ? 'bg-green-500' : status === 'INACTIVE' ? 'bg-red-500' : status === 'IDLE' ? 'bg-yellow-500' : 'bg-gray-400'}`}></span>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'ACTIVE' ? 'bg-green-500' : status === 'INACTIVE' ? 'bg-red-500' : status === 'IDLE' ? 'bg-yellow-500' : status === 'RESIGNED' ? 'bg-orange-500' : 'bg-gray-400'}`}></span>
                               {statusLabel}
                             </span>
                             {isAdmin && (
-                              <button onClick={() => handleToggleStatus(user.id, status)} className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-50 border text-gray-600 hover:bg-gray-100">{(status === 'ACTIVE' || status === 'IDLE') ? 'Set Inactive' : 'Set Active'}</button>
+                              <>
+                                {status === 'RESIGNED' ? (
+                                  <button onClick={() => handleReinstate(user.id)} className="ml-2 text-xs px-2 py-0.5 rounded bg-green-50 border text-green-600 hover:bg-green-100">Reinstate</button>
+                                ) : (
+                                  <>
+                                    <button onClick={() => handleToggleStatus(user.id, status)} className="ml-2 text-xs px-2 py-0.5 rounded bg-gray-50 border text-gray-600 hover:bg-gray-100">{(status === 'ACTIVE' || status === 'IDLE') ? 'Set Inactive' : 'Set Active'}</button>
+                                    <button onClick={() => handleMarkResigned(user.id)} className="ml-2 text-xs px-2 py-0.5 rounded bg-red-50 border text-red-600 hover:bg-red-100">Mark Resigned</button>
+                                  </>
+                                )}
+                              </>
                             )}
                             {user.taskSummary && (
                               (user.taskSummary.total || 0) > 0 ? (

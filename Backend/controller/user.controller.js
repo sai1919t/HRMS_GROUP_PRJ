@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { findUserByEmail, findUserById, getAllUsers as getAllUsersModel } from "../models/user.model.js";
+import { findUserByEmail, findUserById, getAllUsers as getAllUsersModel, archiveUserById, getArchivedUsers } from "../models/user.model.js";
 import { createUserService, updateUserService } from "../services/user.service.js";
 import { addToken } from "../models/blacklistedTokens.js";
 import pool from "../db/db.js";
@@ -140,8 +140,8 @@ export const getAllUsers = async (req, res) => {
         // Derive status from admin-set status or last_activity timestamps
         const normalized = users.map(u => {
                 const raw = (u.status || '').toString().trim().toUpperCase();
-            // If admin explicitly set INACTIVE, respect it (manual disabling)
-            if (raw === 'INACTIVE') return { ...u, status: 'INACTIVE', raw_status: raw };
+            // If admin explicitly set INACTIVE or RESIGNED, respect it (manual disabling / resignation)
+            if (raw === 'INACTIVE' || raw === 'RESIGNED') return { ...u, status: raw, raw_status: raw };
 
             // If we have a live socket connection for this user, prefer that as ACTIVE
             let computed = 'UNKNOWN';
@@ -195,8 +195,31 @@ export const heartbeat = async (req, res) => {
     try {
         const uid = req.user && req.user.id;
         if (!uid) return res.status(401).json({ message: 'Unauthorized' });
-        await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [uid]);
-        // Broadcast presence update via socket.io if available
+
+        // Load user first so we can respect a Resigned status
+        const user = await findUserById(uid);
+        const status = user && user.status ? user.status.toString().trim().toUpperCase() : null;
+
+        if (status === 'RESIGNED') {
+            // Don't update last_activity for resigned users; just emit resigned
+            try {
+                if (global.io) {
+                    global.io.emit('presence:update', { userId: String(uid), status: 'RESIGNED', last_activity: user.resigned_at || null });
+                }
+            } catch (e) {
+                console.warn('Failed to emit presence update for resigned user', e);
+            }
+            return res.json({ ok: true, resigned: true });
+        }
+
+        // Not resigned — update last_activity and emit active
+        try {
+            console.debug('Heartbeat: updating last_activity for uid=', uid);
+            await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [uid]);
+        } catch (dbErr) {
+            console.error('Heartbeat DB update failed for uid=', uid, dbErr);
+            throw dbErr;
+        }
         try {
             if (global.io) {
                 global.io.emit('presence:update', { userId: String(uid), status: 'ACTIVE', last_activity: new Date().toISOString() });
@@ -253,11 +276,35 @@ export const updateUser = async (req, res) => {
             return res.status(400).json({ message: "No updates provided" });
         }
 
+        // If status is set to Resigned, archive and delete user
+        if (updates.status && updates.status.toString().trim().toUpperCase() === 'RESIGNED') {
+            const reason = updates.resignation_reason || null;
+            try {
+                const archived = await archiveUserById(id, reason, req.user ? req.user.id : null);
+                // Ensure presence map clears this user
+                if (global && global.onlineUsers) global.onlineUsers.delete(String(id));
+                if (global && global.io) global.io.emit('presence:update', { userId: String(id), status: 'RESIGNED', last_activity: archived.resigned_at || null });
+                // If it's self resign, blacklist token to force logout
+                const isSelf = req.user && String(req.user.id) === String(id);
+                if (isSelf && req.token) {
+                    try { await addToken(req.token); } catch (e) { console.warn('Failed to blacklist token after resignation', e); }
+                }
+                return res.status(200).json({ message: 'User archived', archived });
+            } catch (err) {
+                console.error('Failed to archive user', err);
+                return res.status(500).json({ message: 'Failed to archive user' });
+            }
+        }
+
         const updatedUser = await updateUserService(id, updates);
         // If status was updated, broadcast to connected clients
         if (updates.status && global && global.io) {
             try {
                 global.io.emit('presence:update', { userId: String(updatedUser.id), status: updatedUser.status, last_activity: updatedUser.last_activity || null });
+                // If user was marked as resigned, remove them from onlineUsers map so presence won't flip back on refresh
+                if (updatedUser.status && updatedUser.status.toString().trim().toUpperCase() === 'RESIGNED' && global.onlineUsers) {
+                    global.onlineUsers.delete(String(updatedUser.id));
+                }
             } catch (e) {
                 console.warn('Failed to emit status update', e);
             }
@@ -314,6 +361,19 @@ export const addUser = async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
         res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+// Archived users list (admin only)
+export const getArchivedUsersController = async (req, res) => {
+    try {
+        const isAdmin = req.user && req.user.role === 'Admin';
+        if (!isAdmin) return res.status(403).json({ message: 'Forbidden' });
+        const rows = await getArchivedUsers();
+        res.status(200).json({ success: true, archived: rows });
+    } catch (err) {
+        console.error('Failed to fetch archived users', err);
+        res.status(500).json({ message: 'Failed to fetch archived users' });
     }
 };
 

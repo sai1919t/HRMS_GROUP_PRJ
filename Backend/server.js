@@ -21,6 +21,7 @@ import { createOffersTable } from "./models/offer.model.js";
 import { createInterviewsTable } from "./models/interview.model.js";
 import { createEventTable } from "./models/event.model.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
+import { heartbeat } from "./controller/user.controller.js";
 
 import { Server } from "socket.io";
 import dotenv from "dotenv";
@@ -58,13 +59,25 @@ io.on("connection", (socket) => {
         onlineUsers.set(idStr, socket.id);
         io.emit("online_users", Array.from(onlineUsers.keys()));
 
-        // Update DB last_activity immediately so API calls reflect live connections
+        // Update DB last_activity and check user status so we don't mark resigned users active
         try {
             await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [idStr]);
-            const { rows } = await pool.query('SELECT last_activity FROM users WHERE id = $1', [idStr]);
-            const last = rows[0] && rows[0].last_activity ? new Date(rows[0].last_activity).toISOString() : new Date().toISOString();
-            io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
-            if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} is online. Total online: ${onlineUsers.size}`);
+            const { rows } = await pool.query('SELECT status, last_activity, resigned_at FROM users WHERE id = $1', [idStr]);
+            const row = rows[0] || {};
+            const status = row.status ? row.status.toString().trim().toUpperCase() : null;
+            const last = row.last_activity ? new Date(row.last_activity).toISOString() : new Date().toISOString();
+
+            if (status === 'RESIGNED') {
+                // If user is resigned, ensure they're not listed as online and broadcast resigned
+                onlineUsers.delete(idStr);
+                io.emit("online_users", Array.from(onlineUsers.keys()));
+                const resignedAtIso = row.resigned_at ? new Date(row.resigned_at).toISOString() : null;
+                io.emit('presence:update', { userId: idStr, status: 'RESIGNED', last_activity: resignedAtIso });
+                if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} attempted connect but is resigned.`);
+            } else {
+                io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
+                if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} is online. Total online: ${onlineUsers.size}`);
+            }
         } catch (err) {
             console.warn('Failed to update last_activity on connect', err);
             io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: new Date().toISOString() });
@@ -87,15 +100,27 @@ io.on("connection", (socket) => {
     socket.on('user_active', async (userId) => {
         try {
             const idStr = String(userId);
-            // ensure they are marked online
-            onlineUsers.set(idStr, socket.id);
-            io.emit("online_users", Array.from(onlineUsers.keys()));
-            // Update DB last_activity to NOW to reflect immediate activity
-            await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [idStr]);
-            const { rows } = await pool.query('SELECT last_activity FROM users WHERE id = $1', [idStr]);
-            const last = rows[0] && rows[0].last_activity ? new Date(rows[0].last_activity).toISOString() : new Date().toISOString();
-            io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
-            if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} became active (user_active).`);
+                // ensure they are marked online and update DB if not resigned
+            const { rows: statusRows } = await pool.query('SELECT status FROM users WHERE id = $1', [idStr]);
+            const status = statusRows[0] && statusRows[0].status ? statusRows[0].status.toString().trim().toUpperCase() : null;
+            if (status === 'RESIGNED') {
+                // If resigned, remove from online users map and broadcast resigned
+                onlineUsers.delete(idStr);
+                io.emit("online_users", Array.from(onlineUsers.keys()));
+                const { rows: r } = await pool.query('SELECT resigned_at FROM users WHERE id = $1', [idStr]);
+                const resignedAtIso = r[0] && r[0].resigned_at ? new Date(r[0].resigned_at).toISOString() : null;
+                io.emit('presence:update', { userId: idStr, status: 'RESIGNED', last_activity: resignedAtIso });
+                if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} attempted to become active but is resigned.`);
+            } else {
+                onlineUsers.set(idStr, socket.id);
+                io.emit("online_users", Array.from(onlineUsers.keys()));
+                // Update DB last_activity to NOW to reflect immediate activity
+                await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [idStr]);
+                const { rows } = await pool.query('SELECT last_activity FROM users WHERE id = $1', [idStr]);
+                const last = rows[0] && rows[0].last_activity ? new Date(rows[0].last_activity).toISOString() : new Date().toISOString();
+                io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
+                if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} became active (user_active).`);
+            }
         } catch (err) {
             console.warn('Failed to handle user_active', err);
         }

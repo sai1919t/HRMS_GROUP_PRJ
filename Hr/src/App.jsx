@@ -8,6 +8,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import Recognition from './pages/Recognition'
 import Layout from './components/layout/Layout'
 import EmployeesPage from './pages/EmployeesPage'
+import ArchivedUsers from './pages/ArchivedUsers'
 import Chat from './pages/Chat'
 import Home from './pages/Home'
 import SignUp from './pages/SignUp'
@@ -73,6 +74,7 @@ function App() {
           <Route path="/promotion" element={<ProtectedRoute><Layout><Promotion /></Layout></ProtectedRoute>} />
           <Route path="/redemption" element={<ProtectedRoute><Layout><RedemptionPage /></Layout></ProtectedRoute>} />
           <Route path='/employees' element={<ProtectedRoute><Layout><EmployeesPage /></Layout></ProtectedRoute>} />
+          <Route path='/archived-users' element={<ProtectedRoute><Layout><ArchivedUsers /></Layout></ProtectedRoute>} />
           <Route path='/chat' element={<ProtectedRoute><Layout><Chat /></Layout></ProtectedRoute>} />
           <Route path='/settings' element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
           <Route path='/settings/rate' element={<ProtectedRoute><Layout><RateApp /></Layout></ProtectedRoute>} />

@@ -1,5 +1,5 @@
 import express from "express";
-import { signup, login, logout, getAllUsers, getUserById, updateUser, addUser, deleteUser } from "../controller/user.controller.js";
+import { signup, login, logout, getAllUsers, getUserById, updateUser, addUser, deleteUser, getArchivedUsersController } from "../controller/user.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
 import { upload } from "../middleware/upload.middleware.js";
@@ -21,6 +21,8 @@ router.post("/upload-profile", upload.single("profile"), (req, res) => {
 });
 router.post("/logout", authMiddleware, logout);
 router.get("/", authMiddleware, getAllUsers);
+// Admin: archived users (must come before param route '/:id')
+router.get('/archived', authMiddleware, getArchivedUsersController);
 router.get("/:id", authMiddleware, getUserById);
 router.put("/:id", authMiddleware, upload.single('profile_picture'), updateUser);
 router.post("/add", authMiddleware, addUser);
