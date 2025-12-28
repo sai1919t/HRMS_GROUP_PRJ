@@ -59,6 +59,22 @@ const onActivity = () => {
     idle = false;
     if (DEBUG) console.debug('[presence] onActivity: became active, restarting heartbeats');
     startHeartbeats();
+
+    // Immediately inform local UI and server that we're active
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        const detail = { userId: String(u.id), status: 'ACTIVE', last_activity: new Date().toISOString() };
+        window.dispatchEvent(new CustomEvent('presence:update', { detail }));
+        if (socket && socket.connected) {
+          socket.emit('user_active', u.id);
+          if (DEBUG) console.debug('[presence] emitted user_active to server', u.id);
+        }
+      }
+    } catch (e) {
+      if (DEBUG) console.debug('[presence] onActivity: failed to emit user_active', e);
+    }
   } else {
     if (DEBUG) console.debug('[presence] onActivity: activity detected');
   }
@@ -70,6 +86,22 @@ const checkIdle = () => {
       idle = true;
       if (DEBUG) console.debug('[presence] checkIdle: idle detected, stopping heartbeats');
       stopHeartbeats();
+
+      // Inform local UI and server that we've become idle so others see IDLE immediately
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          const detail = { userId: String(u.id), status: 'IDLE', last_activity: null };
+          window.dispatchEvent(new CustomEvent('presence:update', { detail }));
+          if (socket && socket.connected) {
+            socket.emit('user_idle', u.id);
+            if (DEBUG) console.debug('[presence] emitted user_idle to server', u.id);
+          }
+        }
+      } catch (e) {
+        if (DEBUG) console.debug('[presence] checkIdle: failed to emit user_idle', e);
+      }
     }
   }
 };

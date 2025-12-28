@@ -71,6 +71,36 @@ io.on("connection", (socket) => {
         }
     });
 
+    // Handle idle notification (client became idle)
+    socket.on('user_idle', (userId) => {
+        try {
+            const idStr = String(userId);
+            // Broadcast IDLE state immediately; don't update DB so last_activity remains last active time
+            io.emit('presence:update', { userId: idStr, status: 'IDLE', last_activity: null });
+            if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} is idle.`);
+        } catch (e) {
+            console.warn('Error handling user_idle', e);
+        }
+    });
+
+    // Handle client reporting it became active again (e.g., user moved mouse)
+    socket.on('user_active', async (userId) => {
+        try {
+            const idStr = String(userId);
+            // ensure they are marked online
+            onlineUsers.set(idStr, socket.id);
+            io.emit("online_users", Array.from(onlineUsers.keys()));
+            // Update DB last_activity to NOW to reflect immediate activity
+            await pool.query('UPDATE users SET last_activity = NOW() WHERE id = $1', [idStr]);
+            const { rows } = await pool.query('SELECT last_activity FROM users WHERE id = $1', [idStr]);
+            const last = rows[0] && rows[0].last_activity ? new Date(rows[0].last_activity).toISOString() : new Date().toISOString();
+            io.emit('presence:update', { userId: idStr, status: 'ACTIVE', last_activity: last });
+            if (process.env.NODE_ENV !== 'test') console.log(`User ${idStr} became active (user_active).`);
+        } catch (err) {
+            console.warn('Failed to handle user_active', err);
+        }
+    });
+
     // Handle disconnects and mark users offline immediately
     socket.on('disconnect', () => {
         // Find any userIds mapped to this socket and remove them
@@ -79,7 +109,7 @@ io.on("connection", (socket) => {
                 onlineUsers.delete(uid);
                 io.emit("online_users", Array.from(onlineUsers.keys()));
                 io.emit('presence:update', { userId: uid, status: 'INACTIVE', last_activity: null });
-                console.log(`User ${uid} disconnected. Total online: ${onlineUsers.size}`);
+                if (process.env.NODE_ENV !== 'test') console.log(`User ${uid} disconnected. Total online: ${onlineUsers.size}`);
             }
         }
     });
