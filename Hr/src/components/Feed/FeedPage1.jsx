@@ -502,6 +502,9 @@ const AppreciationCard = ({ appreciation }) => {
                         <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">#{appreciation.category}</span>
                         <span>{appreciation.emoji}</span>
                     </div>
+                    <div className="mt-4">
+                        <Link to={`/appreciation/${appreciation.id}`} className="text-sm text-[#266ECD] font-medium">Open</Link>
+                    </div>
                 </div>
             </div>
             <CommentSection appreciation={appreciation} />
@@ -552,13 +555,13 @@ const CommentSection = ({ appreciation }) => {
             {showComments && (
                 <div className="mt-4 space-y-4 pb-4">
                     {comments.map(c => (
-                        <div key={c.id} className="bg-gray-50 p-3 rounded-lg text-sm">
-                            <span className="font-bold text-gray-900">{c.user_name}</span>: {c.comment}
+                        <div key={c.id} className="bg-gray-800 text-white p-3 rounded-lg text-sm">
+                            <span className="font-bold text-white">{c.user_name}</span>: <span className="text-gray-200">{c.comment}</span>
                         </div>
                     ))}
                     <div className="flex gap-2">
                         <input
-                            className="flex-1 border rounded px-3 py-1 text-sm outline-none focus:border-[#266ECD]"
+                            className="flex-1 border rounded px-3 py-1 text-sm outline-none focus:border-[#266ECD] bg-gray-700 text-white border-gray-600 placeholder-gray-400"
                             placeholder="Add a comment..."
                             value={newComment}
                             onChange={e => setNewComment(e.target.value)}

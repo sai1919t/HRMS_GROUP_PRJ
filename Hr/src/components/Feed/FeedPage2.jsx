@@ -270,16 +270,21 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Tabs */}
-                        <div className="flex gap-8 border-b-2 border-gray-200">
-                            <button
-                                onClick={onNavigateToPage3}
-                                className="pb-3 text-gray-900 font-semibold border-b-4 border-[#266ECD] -mb-0.5"
-                            >
-                                Employee of the Month
-                            </button>
-                            <button className="pb-3 text-gray-500 hover:text-gray-900 font-medium">
-                                <Link to="/promotion">Promotions</Link>
-                            </button>
+                        <div className="flex items-center justify-between border-b-2 border-gray-200">
+                            <div className="flex gap-8">
+                                <button
+                                    onClick={onNavigateToPage3}
+                                    className="pb-3 text-gray-900 font-semibold border-b-4 border-[#266ECD] -mb-0.5"
+                                >
+                                    Employee of the Month
+                                </button>
+                                <button className="pb-3 text-gray-500 hover:text-gray-900 font-medium">
+                                    <Link to="/promotion">Promotions</Link>
+                                </button>
+                            </div>
+                            <div>
+                                <Link to="/appreciation/new" className="ml-4 inline-block bg-[#266ECD] text-white px-4 py-2 rounded-lg font-medium hover:bg-opacity-90">New Appreciation</Link>
+                            </div>
                         </div>
 
                         {/* Loading State */}
@@ -414,48 +419,50 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                     {/* Comments Section */}
                                     {showComments[appreciation.id] && (
                                         <div className="mt-6 pt-6 border-t border-gray-200">
-                                            <h4 className="font-bold text-gray-900 mb-4">Comments</h4>
+                                            <div className="p-4 bg-gray-800 rounded-lg text-white">
+                                                <h4 className="font-bold text-white mb-4">Comments</h4>
 
-                                            {/* Comment Input */}
-                                            <div className="flex gap-2 mb-4">
-                                                <input
-                                                    type="text"
-                                                    value={commentInputs[appreciation.id] || ''}
-                                                    onChange={(e) => handleCommentChange(appreciation.id, e.target.value)}
-                                                    onKeyPress={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            handleAddComment(appreciation.id);
-                                                        }
-                                                    }}
-                                                    placeholder="Add a comment..."
-                                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none"
-                                                />
-                                                <button
-                                                    onClick={() => handleAddComment(appreciation.id)}
-                                                    className="bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90"
-                                                >
-                                                    Post
-                                                </button>
-                                            </div>
+                                                {/* Comment Input */}
+                                                <div className="flex gap-2 mb-4">
+                                                    <input
+                                                        type="text"
+                                                        value={commentInputs[appreciation.id] || ''}
+                                                        onChange={(e) => handleCommentChange(appreciation.id, e.target.value)}
+                                                        onKeyPress={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                handleAddComment(appreciation.id);
+                                                            }
+                                                        }}
+                                                        placeholder="Add a comment..."
+                                                        className="flex-1 px-4 py-2 rounded-lg outline-none bg-gray-700 text-white border border-gray-600 placeholder-gray-400"
+                                                    />
+                                                    <button
+                                                        onClick={() => handleAddComment(appreciation.id)}
+                                                        className="bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90"
+                                                    >
+                                                        Post
+                                                    </button>
+                                                </div>
 
-                                            {/* Comments List */}
-                                            <div className="space-y-3">
-                                                {comments[appreciation.id]?.map((comment) => (
-                                                    <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                                                        <div className="flex items-start justify-between">
-                                                            <div>
-                                                                <p className="font-semibold text-sm text-gray-900">{comment.user_name}</p>
-                                                                <p className="text-sm text-gray-700 mt-1">{comment.comment}</p>
-                                                                <p className="text-xs text-gray-500 mt-1">
-                                                                    {formatDate(comment.created_at)} at {formatTime(comment.created_at)}
-                                                                </p>
+                                                {/* Comments List */}
+                                                <div className="space-y-3">
+                                                    {comments[appreciation.id]?.map((comment) => (
+                                                        <div key={comment.id} className="bg-gray-700 rounded-lg p-3 text-white">
+                                                            <div className="flex items-start justify-between">
+                                                                <div>
+                                                                    <p className="font-semibold text-sm text-white">{comment.user_name}</p>
+                                                                    <p className="text-sm text-gray-200 mt-1">{comment.comment}</p>
+                                                                    <p className="text-xs text-gray-400 mt-1">
+                                                                        {formatDate(comment.created_at)} at {formatTime(comment.created_at)}
+                                                                    </p>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                ))}
-                                                {(!comments[appreciation.id] || comments[appreciation.id].length === 0) && (
-                                                    <p className="text-sm text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
-                                                )}
+                                                    ))}
+                                                    {(!comments[appreciation.id] || comments[appreciation.id].length === 0) && (
+                                                        <p className="text-sm text-gray-300 text-center py-4">No comments yet. Be the first to comment!</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )}

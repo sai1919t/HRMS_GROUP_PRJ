@@ -110,16 +110,16 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                 </div>
 
                 {/* Form */}
-                <div className="bg-white rounded-2xl shadow-md p-8">
+                <div className="bg-white dark:bg-gray-900 dark:border-gray-700 rounded-2xl shadow-md p-8 border border-gray-100">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Error/Success Messages */}
                         {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg">
                                 {error}
                             </div>
                         )}
                         {success && (
-                            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                            <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg">
                                 {success}
                             </div>
                         )}
@@ -134,7 +134,7 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                                 value={formData.recipient_id}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
                             >
                                 <option value="">Select a colleague to appreciate</option>
                                 {users.map(user => (
@@ -158,7 +158,7 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                                 placeholder="e.g., Congratulations to John Doe"
                                 required
                                 maxLength={255}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
                             />
                         </div>
 
@@ -172,7 +172,7 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                                 value={formData.category}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -192,8 +192,8 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                                         type="button"
                                         onClick={() => setFormData(prev => ({ ...prev, emoji }))}
                                         className={`text-3xl p-2 rounded-lg border-2 transition-all ${formData.emoji === emoji
-                                                ? 'border-[#266ECD] bg-blue-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                                ? 'border-[#266ECD] bg-blue-50 dark:bg-gray-800'
+                                                : 'border-gray-200 hover:border-gray-300 dark:border-gray-600 dark:hover:border-gray-500'
                                             }`}
                                     >
                                         {emoji}
@@ -214,9 +214,9 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                                 placeholder="Write your appreciation message here..."
                                 required
                                 rows={6}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none resize-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#266ECD] focus:border-transparent outline-none resize-none dark:bg-gray-700 dark:text-white dark:border-gray-600"
                             />
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                                 {formData.message.length} characters
                             </p>
                         </div>
@@ -233,7 +233,7 @@ const CreateAppreciation = ({ onNavigateBack, onSuccess }) => {
                             <button
                                 type="button"
                                 onClick={onNavigateBack}
-                                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-50 transition-all"
+                                className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-50 transition-all dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                             >
                                 Cancel
                             </button>

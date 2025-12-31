@@ -19,6 +19,8 @@ import Profile from './pages/profile/Profile'
 import ProfileView from './components/Profile/ProfileView'
 import Promotion from './pages/Promotion'
 import Redemption from './pages/Redemption'
+import AppreciationPage from './pages/Appreciation'
+import CreateAppreciation from './pages/CreateAppreciation'
 import LogPage from './pages/LogPage'
 import Settings from './pages/Settings'
 import ProfileFeed from './pages/profile/ProfileFeed'
@@ -98,6 +100,8 @@ function App() {
           <Route path="/recruitment/*" element={<ProtectedRoute><Layout><RecruitmentLayout /></Layout></ProtectedRoute>} />
           <Route path="/admin/tasks" element={<ProtectedRoute><Layout><TasksAdmin /></Layout></ProtectedRoute>} />
           <Route path="/profile/tasks" element={<ProtectedRoute><Layout><ProfileTasks /></Layout></ProtectedRoute>} />
+          <Route path="/appreciation/new" element={<ProtectedRoute><Layout><CreateAppreciation /></Layout></ProtectedRoute>} />
+          <Route path="/appreciation/:id" element={<ProtectedRoute><Layout><AppreciationPage /></Layout></ProtectedRoute>} />
         </Routes>
       </div>
     </>

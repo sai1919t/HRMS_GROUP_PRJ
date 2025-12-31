@@ -9,12 +9,11 @@ import {
 
 const SettingsPage = () => {
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
 
   const settingsItems = [
     { icon: <Bell size={22} />, label: 'Notification', hasToggle: true, toggleState: notifications, onToggle: () => setNotifications(!notifications) },
-    { icon: <Moon size={22} />, label: 'Dark Mode', hasToggle: true, toggleState: darkMode, onToggle: () => setDarkMode(!darkMode) },
+    { icon: <Moon size={22} />, label: 'Comments Dark Mode (always on)', hasToggle: false },
     { icon: <Star size={22} />, label: 'Rate App', path: '/settings/rate' },
     { icon: <LinkIcon size={22} />, label: 'Share Link' },
     { icon: <Shield size={22} />, label: 'Privacy Policy', path: '/settings/privacy' },
