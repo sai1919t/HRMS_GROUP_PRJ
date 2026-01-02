@@ -317,7 +317,7 @@ const FeedPage1 = ({ onNavigateBack }) => {
 // 1. Points Card (Visually distinct for points transactions)
 const PointsCard = ({ appreciation, onLike, onDelete }) => {
     return (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden border-2 border-orange-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border-2 border-orange-100 dark:border-orange-900">
             <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
@@ -325,18 +325,21 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             {appreciation.points}
                         </div>
                         <div>
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-lg font-bold text-[#2C50AB] dark:text-[#AACCFF]">
                                 <span className="text-[#266ECD]">{appreciation.sender_name}</span>
                                 <span className="font-normal text-gray-500 mx-2">rewarded</span>
                                 <span className="text-[#266ECD]">{appreciation.recipient_name}</span>
                             </p>
-                            <p className="text-sm text-gray-500">{new Date(appreciation.created_at).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {new Date(appreciation.created_at).toLocaleDateString()}
+                            </p>
                         </div>
                     </div>
+
                     {/* Delete Button */}
                     <button
                         onClick={onDelete}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                        className="text-gray-400 hover:text-[#88AAFF] transition-colors p-1"
                         title="Delete Post"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,8 +348,12 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                     </button>
                 </div>
 
-                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                    <p className="text-gray-800 font-medium italic">"{appreciation.message}"</p>
+                {/* Quote Box */}
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-100 dark:border-orange-900">
+                    <p className="text-gray-800 dark:text-gray-200 font-medium italic">
+                        "{appreciation.message}"
+                    </p>
+
                     <div className="mt-3 flex gap-2">
                         <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full uppercase tracking-wide">
                             {appreciation.category}
@@ -359,15 +366,34 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                 <div className="flex items-center gap-6 mt-4 pt-4 border-t border-orange-50">
                     <button
                         onClick={onLike}
-                        className={`flex items-center gap-2 transition-colors ${appreciation.user_liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+                        className={`flex items-center gap-2 transition-colors ${
+                            appreciation.user_liked
+                                ? 'text-red-500'
+                                : 'text-gray-500 hover:text-[#88AAFF]'
+                        }`}
                     >
-                        <svg className={`w-6 h-6 ${appreciation.user_liked ? 'fill-current' : 'fill-none stroke-current'}`} viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        <svg
+                            className={`w-6 h-6 ${
+                                appreciation.user_liked
+                                    ? 'fill-current'
+                                    : 'fill-none stroke-current'
+                            }`}
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                            />
                         </svg>
-                        <span className="text-sm font-medium">{appreciation.likes_count || 0} Likes</span>
+                        <span className="text-sm font-medium">
+                            {appreciation.likes_count || 0} Likes
+                        </span>
                     </button>
                 </div>
             </div>
+
             <CommentSection appreciation={appreciation} />
         </div>
     );
