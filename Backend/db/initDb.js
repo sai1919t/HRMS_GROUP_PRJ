@@ -48,6 +48,50 @@ export const initDb = async () => {
         status VARCHAR(20) DEFAULT 'PENDING'
       );
     `);
+    // Courses table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS courses (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        type VARCHAR(50) NOT NULL,
+        content_url TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    // Course Assignments table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS course_assignments (
+        id SERIAL PRIMARY KEY,
+        course_id INT REFERENCES users(id),
+        employee_id INT REFERENCES users(id),
+        completed BOOLEAN DEFAULT FALSE,
+        completed_at TIMESTAMP,
+        due_date DATE
+      );
+    `);
+    // Skill Matrix table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS skill_matrix (
+        id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES users(id),
+        skill_name VARCHAR(100) NOT NULL,
+        proficiency_level VARCHAR(50),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+     // Certification Management table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS certifications (
+        id SERIAL PRIMARY KEY,
+        employee_id INT REFERENCES users(id),
+        course_id INT REFERENCES courses(id),
+        certificate_url TEXT,
+        issue_date DATE DEFAULT CURRENT_DATE,
+        expiry_date DATE,
+        renewal_reminder_sent BOOLEAN DEFAULT FALSE
+      );
+    `);
 
     console.log("✅ ATS tables created / already exist");
     // Create points transactions table for admin allocations
