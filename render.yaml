@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: hrms-backend
+    env: docker
+    dockerfilePath: Backend/Dockerfile
+    plan: starter
+    # Note: sensitive env vars must be provided in the Render dashboard

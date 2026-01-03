@@ -22,7 +22,8 @@
         "nodemailer": "^6.10.1",
         "pdfkit": "^0.17.2",
         "pg": "^8.11.5",
-        "socket.io": "^4.8.1"
+        "socket.io": "^4.8.1",
+        "serverless-http": "^3.0.0"
     },
     "devDependencies": {
         "mocha": "^10.2.0",
