@@ -9,13 +9,14 @@ import {
     checkUserLiked,
     addComment,
     deleteComment,
-    getComments
+    getComments,
+    getLeaderboard
 } from "../models/appreciation.model.js";
 
 // Create new appreciation
 export const createAppreciationController = async (req, res) => {
     try {
-        const { recipient_id, title, category, message, emoji, points } = req.body;
+        const { recipient_id, title, category, message, emoji, points, source } = req.body;
         const sender_id = req.user.id; // From auth middleware
 
         if (!recipient_id || !title || !category || !message) {
@@ -25,6 +26,29 @@ export const createAppreciationController = async (req, res) => {
             });
         }
 
+        // If points are provided and > 0, perform transfer transactionally
+        let transferResult = null;
+        if (points && Number(points) > 0) {
+            // Check if sender is admin - admins can grant unlimited points (no deduction)
+            const { findUserById } = await import('../models/user.model.js');
+            const { addPoints, transferPoints } = await import('../models/points.model.js');
+            const sender = await findUserById(sender_id);
+
+            try {
+                if (sender && sender.role === 'Admin') {
+                    // Admin grants points without deduction
+                    const updatedRecipient = await addPoints(sender_id, recipient_id, Number(points), title || 'Points granted via admin appreciation');
+                    transferResult = { sender: sender, recipient: updatedRecipient };
+                } else {
+                    // Normal user: perform atomic transfer (will fail if insufficient)
+                    transferResult = await transferPoints(sender_id, recipient_id, Number(points), title || 'Points transfer via appreciation');
+                }
+            } catch (err) {
+                console.error('Points transfer failed', err);
+                return res.status(400).json({ success: false, message: err.message || 'Points transfer failed' });
+            }
+        }
+
         const appreciation = await createAppreciation(
             sender_id,
             recipient_id,
@@ -32,13 +56,18 @@ export const createAppreciationController = async (req, res) => {
             category,
             message,
             points || 0,
-            emoji || '🎉'
+            emoji || '🎉',
+            source || 'feed'
         );
+
+        // Emit activity update to client via event (frontend listens for activity:updated)
+        try { global?.emitActivity?.('activity:updated'); } catch (e) {}
 
         res.status(201).json({
             success: true,
             message: "Appreciation created successfully",
-            data: appreciation
+            data: appreciation,
+            transfer: transferResult
         });
     } catch (error) {
         console.error("Error creating appreciation:", error);
@@ -53,7 +82,8 @@ export const createAppreciationController = async (req, res) => {
 // Get all appreciations
 export const getAllAppreciationsController = async (req, res) => {
     try {
-        const appreciations = await getAllAppreciations();
+        const { source } = req.query;
+        const appreciations = await getAllAppreciations(source);
 
         // Add user liked status if user is authenticated
         if (req.user) {
@@ -124,7 +154,8 @@ export const deleteAppreciationController = async (req, res) => {
             });
         }
 
-        if (appreciation.sender_id !== userId) {
+        // Allow deletion if the requester is the sender OR an Admin
+        if (appreciation.sender_id !== userId && req.user.role !== 'Admin') {
             return res.status(403).json({
                 success: false,
                 message: "You are not authorized to delete this appreciation"
@@ -299,6 +330,32 @@ export const getCommentsController = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch comments",
+            error: error.message
+        });
+    }
+};
+
+// Get leaderboard
+export const getLeaderboardController = async (req, res) => {
+    try {
+        const leaderboard = await getLeaderboard();
+
+        // Add rank
+        const leaderboardWithRank = leaderboard.map((user, index) => ({
+            ...user,
+            rank: index + 1,
+            points: Number(user.points) // Ensure points is a number
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: leaderboardWithRank
+        });
+    } catch (error) {
+        console.error("Error fetching leaderboard:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch leaderboard",
             error: error.message
         });
     }

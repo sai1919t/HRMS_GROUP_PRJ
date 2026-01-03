@@ -11,12 +11,22 @@ export const createAppreciationsTable = async () => {
       category VARCHAR(100) NOT NULL,
       message TEXT NOT NULL,
       emoji VARCHAR(10) DEFAULT '🎉',
+      points INTEGER DEFAULT 0,
+      source VARCHAR(50) DEFAULT 'feed',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
   try {
     await pool.query(query);
-    console.log("✅ Appreciations table created successfully");
+
+    // Migration to add source column if it doesn't exist (for existing tables)
+    try {
+      await pool.query(`ALTER TABLE appreciations ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'feed';`);
+    } catch (e) {
+      console.log("Column source already exists or error adding it:", e.message);
+    }
+
+    console.log("✅ Appreciations table created/verified successfully");
   } catch (error) {
     console.error("❌ Error creating appreciations table:", error);
   }
@@ -61,25 +71,26 @@ export const createCommentsTable = async () => {
 };
 
 // Create new appreciation
-export const createAppreciation = async (senderId, recipientId, title, category, message, points = 0, emoji = '🎉') => {
+export const createAppreciation = async (senderId, recipientId, title, category, message, points = 0, emoji = '🎉', source = 'feed') => {
   const query = `
-    INSERT INTO appreciations (sender_id, recipient_id, title, category, message, points, emoji)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO appreciations (sender_id, recipient_id, title, category, message, points, emoji, source)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;
   `;
-  const values = [senderId, recipientId, title, category, message, points, emoji];
+  const values = [senderId, recipientId, title, category, message, points, emoji, source];
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
 
 // Get all appreciations with sender and recipient details
-export const getAllAppreciations = async () => {
-  const query = `
+export const getAllAppreciations = async (sourceFilter = null) => {
+  let query = `
     SELECT 
       a.*,
       sender.id as sender_id,
       sender.fullname as sender_name,
       sender.email as sender_email,
+      sender.profile_picture as sender_profile_picture,
       recipient.id as recipient_id,
       recipient.fullname as recipient_name,
       recipient.email as recipient_email,
@@ -88,9 +99,17 @@ export const getAllAppreciations = async () => {
     FROM appreciations a
     JOIN users sender ON a.sender_id = sender.id
     JOIN users recipient ON a.recipient_id = recipient.id
-    ORDER BY a.created_at DESC;
   `;
-  const { rows } = await pool.query(query);
+
+  const params = [];
+  if (sourceFilter) {
+    query += ` WHERE a.source = $1 `;
+    params.push(sourceFilter);
+  }
+
+  query += ` ORDER BY a.created_at DESC;`;
+
+  const { rows } = await pool.query(query, params);
   return rows;
 };
 
@@ -191,5 +210,22 @@ export const getComments = async (appreciationId) => {
     ORDER BY c.created_at ASC;
   `;
   const { rows } = await pool.query(query, [appreciationId]);
+  return rows;
+};
+
+// Get leaderboard (top recipients by points)
+export const getLeaderboard = async () => {
+  const query = `
+    SELECT 
+      users.id,
+      users.fullname as name,
+      users.profile_picture,
+      SUM(appreciations.points) as points
+    FROM appreciations
+    JOIN users ON appreciations.recipient_id = users.id
+    GROUP BY users.id
+    ORDER BY points DESC;
+  `;
+  const { rows } = await pool.query(query);
   return rows;
 };

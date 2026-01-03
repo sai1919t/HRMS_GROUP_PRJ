@@ -4,12 +4,14 @@ import dotenv from "dotenv";
 dotenv.config();
 const { Pool } = pkg;
 
-const pool = new Pool({
+// Reuse pool across Lambda invocations to avoid exhausting DB connections
+const pool = global.__pgPool || new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
 });
+if (!global.__pgPool) global.__pgPool = pool;
 
 pool.on("error", (err, client) => {
   console.error("Unexpected error on idle client", err);

@@ -3,6 +3,11 @@ import * as EmployeeOfMonthModel from "../models/employeeOfMonth.model.js"; // E
 // Create new employee of the month with team members
 export const createEmployeeOfMonth = async (req, res) => {
     try {
+        // Only admins may create Employee of the Month
+        if (!req.user || req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: 'Forbidden: Admins only' });
+        }
+
         const { userId, description, month, teamMembers } = req.body;
 
         // Validate required fields
@@ -83,6 +88,11 @@ export const getCurrentEmployeeOfMonth = async (req, res) => {
 // Add team member to employee of the month
 export const addTeamMember = async (req, res) => {
     try {
+        // Only admins may add team members
+        if (!req.user || req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: 'Forbidden: Admins only' });
+        }
+
         const { id } = req.params;
         const { userId, role } = req.body;
 
@@ -113,6 +123,11 @@ export const addTeamMember = async (req, res) => {
 // Delete team member
 export const deleteTeamMember = async (req, res) => {
     try {
+        // Only admins may delete team members
+        if (!req.user || req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: 'Forbidden: Admins only' });
+        }
+
         const { teamMemberId } = req.params;
 
         const deletedMember = await EmployeeOfMonthModel.deleteTeamMember(teamMemberId);
@@ -134,6 +149,40 @@ export const deleteTeamMember = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to delete team member",
+            error: error.message,
+        });
+    }
+};
+
+// Delete employee of the month
+export const deleteEmployeeOfMonth = async (req, res) => {
+    try {
+        // Only admins may delete the Employee of the Month entry
+        if (!req.user || req.user.role !== 'Admin') {
+            return res.status(403).json({ success: false, message: 'Forbidden: Admins only' });
+        }
+
+        const { id } = req.params;
+
+        const deletedEmployee = await EmployeeOfMonthModel.deleteEmployeeOfMonth(id);
+
+        if (!deletedEmployee) {
+            return res.status(404).json({
+                success: false,
+                message: "Employee of the month not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Employee of the month and team deleted successfully",
+            data: deletedEmployee,
+        });
+    } catch (error) {
+        console.error("Error deleting employee of the month:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete employee of the month",
             error: error.message,
         });
     }

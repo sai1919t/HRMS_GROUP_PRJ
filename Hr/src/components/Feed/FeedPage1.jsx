@@ -9,6 +9,8 @@ import {
     deleteAppreciation
 } from '../../services/appreciationService';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { getAllEvents } from '../../services/event.service';
 
 const FeedPage1 = ({ onNavigateBack }) => {
     // State for the "Give Points" interaction
@@ -40,6 +42,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
     };
 
     // Fetch initial data
+    const [userPoints, setUserPoints] = useState(0);
+
+    const [isAdmin, setIsAdmin] = useState(false);
+
     useEffect(() => {
         const fetchUsers = async () => {
             try {
@@ -53,8 +59,70 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 console.error("Failed to fetch users", error);
             }
         };
+
+        const fetchUserPoints = async () => {
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                if (!u || !u.id) return;
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}/api/users/${u.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                setUserPoints(data.user?.points || 0);
+                // update local user copy
+                if (data.user) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    setIsAdmin(data.user.role === 'Admin');
+                }
+            } catch (err) {
+                console.error('Failed to fetch user points', err);
+            }
+        };
+
         fetchUsers();
         fetchFeed();
+        fetchUserPoints();
+
+        // listen for activity updates to refresh points
+        const onActivity = () => fetchUserPoints();
+        window.addEventListener('activity:updated', onActivity);
+        return () => window.removeEventListener('activity:updated', onActivity);
+    }, []);
+
+    // Events for feed (upcoming/past)
+    const [events, setEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+
+    const getEventCategory = (eventDate) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const eventDateObj = new Date(eventDate);
+        eventDateObj.setHours(0, 0, 0, 0);
+        return eventDateObj >= today ? 'upcoming' : 'past';
+    };
+
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                setEventsLoading(true);
+                const res = await getAllEvents();
+                const ev = Array.isArray(res) ? res : (res.events || res);
+                setEvents(ev || []);
+            } catch (e) {
+                console.error('Failed to fetch events', e);
+            } finally {
+                setEventsLoading(false);
+            }
+        };
+        fetchEvents();
+
+        const onEventsUpdated = () => fetchEvents();
+        window.addEventListener('events:updated', onEventsUpdated);
+        window.addEventListener('activity:updated', onEventsUpdated);
+        return () => {
+            window.removeEventListener('events:updated', onEventsUpdated);
+            window.removeEventListener('activity:updated', onEventsUpdated);
+        };
     }, []);
 
     const handleGivePoints = () => {
@@ -75,6 +143,7 @@ const FeedPage1 = ({ onNavigateBack }) => {
         try {
             await deleteAppreciation(id);
             fetchFeed(); // Refresh to remove deleted item
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
         } catch (error) {
             console.error("Failed to delete appreciation", error);
             alert("Failed to delete. You might not have permission.");
@@ -92,8 +161,18 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 }
             }
 
+            // Check balance (admins can send unlimited points)
+            if (parseInt(givePointsData.points, 10) <= 0) {
+                alert('Please enter a positive points amount');
+                return;
+            }
+            if (!isAdmin && parseInt(givePointsData.points, 10) > userPoints) {
+                alert('Insufficient points to send');
+                return;
+            }
+
             // Call backend API
-            await createAppreciation({
+            const resp = await createAppreciation({
                 recipient_id: parseInt(givePointsData.recipient_id),
                 title: givePointsData.title,
                 category: givePointsData.category,
@@ -101,6 +180,14 @@ const FeedPage1 = ({ onNavigateBack }) => {
                 points: parseInt(givePointsData.points),
                 emoji: givePointsData.emoji
             });
+
+            // If transfer info present, update user points
+            if (resp && resp.transfer && resp.transfer.sender) {
+                const newPoints = resp.transfer.sender.points || 0;
+                setUserPoints(newPoints);
+                const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+                localStorage.setItem('user', JSON.stringify({ ...localUser, points: newPoints }));
+            }
 
             alert(`Successfully sent ${givePointsData.points} points!`);
             setShowGivePointsModal(false);
@@ -115,6 +202,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
             });
             // Refresh feed to show new card
             fetchFeed();
+            // Notify other pages to refresh points and leaderboard
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
+            // Notify other pages
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
         } catch (error) {
             console.error(error);
             alert('Failed to send points: ' + (error.message || JSON.stringify(error)));
@@ -129,18 +220,18 @@ const FeedPage1 = ({ onNavigateBack }) => {
                     <div>
                         <button
                             onClick={onNavigateBack}
-                            className="text-gray-600 hover:text-gray-800 mb-2"
+                            className="text-gray-600 hover:text-gray-800 dark:text-[#AACCFF] dark:hover:text-[#88AAFF] mb-2"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
-                        <h1 className="text-xl font-bold text-[#266ECD]">Give Points & Appreciate</h1>
-                        <p className="text-gray-600">Recognize your colleagues' hard work.</p>
+                        <h1 className="text-xl font-bold text-[#266ECD] dark:text-[#AACCFF]">Give Points & Appreciate</h1>
+                        <p className="text-gray-600 dark:text-[#AACCFF]">Recognize your colleagues' hard work.</p>
                     </div>
                     <button
                         onClick={handleGivePoints}
-                        className="bg-[#266ECD] text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2"
+                        className="bg-[#266ECD] dark:bg-[#2C50AB] text-white dark:text-[#AACCFF] px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-blue-700 dark:hover:bg-[#88AAFF] transition-all flex items-center gap-2"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -153,14 +244,14 @@ const FeedPage1 = ({ onNavigateBack }) => {
                     {/* Main Feed Column */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Give Points Banner */}
-                        <div className="flex flex-col items-center justify-center py-8 bg-white rounded-xl shadow-sm border border-gray-100">
-                            <h2 className="text-xl font-bold text-gray-900 mb-2">Send Appreciation</h2>
-                            <p className="text-gray-500 mb-4 text-center max-w-md text-sm">
+                        <div className="flex flex-col items-center justify-center py-8 bg-white dark:bg-[#2C50AB] rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-[#AACCFF] mb-2">Send Appreciation</h2>
+                            <p className="text-gray-500 dark:text-[#AACCFF] mb-4 text-center max-w-md text-sm">
                                 Share points and a message to recognize someone's contribution.
                             </p>
                             <button
                                 onClick={handleGivePoints}
-                                className="bg-[#266ECD] text-white px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-all flex items-center gap-2"
+                                className="bg-[#266ECD] dark:bg-[#2C50AB] text-white dark:text-[#AACCFF] px-6 py-2 rounded-xl font-bold shadow-lg hover:bg-blue-700 hover:scale-105 dark:hover:bg-[#88AAFF] transition-all flex items-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -194,18 +285,18 @@ const FeedPage1 = ({ onNavigateBack }) => {
                     <div className="space-y-6">
                         {/* New Point Alert */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
-                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">New Point Alert!</h3>
+                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">Your Points</h3>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="text-5xl font-bold text-[#266ECD]">250</div>
+                                <div className="text-5xl font-bold text-[#266ECD]">{userPoints?.toLocaleString() || 0}</div>
                                 <div className="w-10 h-10 rounded-full bg-[#266ECD] flex items-center justify-center">
                                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 </div>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">Reward points with Manager</p>
+                            <p className="text-sm text-gray-600 mb-4">Reward points balance</p>
                             <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
-                                Attempt
+                                <Link to="/redemption">View Redemption Center</Link>
                             </button>
                         </div>
 
@@ -225,25 +316,36 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </button>
                         </div>
 
-                        {/* Upcoming Events */}
+                        {/* Upcoming Events (dynamic) */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 002-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                                     </svg>
                                     Upcoming Events
                                 </h3>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Town Hall Meeting</p>
-                                        <p className="text-xs text-gray-500">2:00 PM - 3:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">10 Nov</span>
-                                </div>
-                                <button className="text-[#266ECD] text-sm font-semibold hover:underline">More...</button>
+                                {eventsLoading ? (
+                                    <p className="text-sm text-gray-500">Loading events...</p>
+                                ) : events.filter(e => getEventCategory(e.event_date) === 'upcoming').length === 0 ? (
+                                    <p className="text-sm text-gray-500">No upcoming events</p>
+                                ) : (
+                                    events.filter(e => getEventCategory(e.event_date) === 'upcoming')
+                                        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+                                        .slice(0, 3)
+                                        .map(ev => (
+                                            <div className="flex justify-between items-start" key={ev.id}>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                                                    <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">{`${ev.attendee_count ?? 0} attending`}</span>
+                                            </div>
+                                        ))
+                                )}
+                                <Link to="/event" className="text-[#266ECD] text-sm font-semibold hover:underline">More...</Link>
                             </div>
                         </div>
                     </div>
@@ -300,9 +402,10 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </div>
                             <button
                                 onClick={submitPoints}
-                                className="w-full bg-[#266ECD] text-white py-3 rounded-xl font-bold hover:bg-opacity-90 transition shadow-lg"
+                                disabled={!givePointsData.recipient_id || !givePointsData.points || (!isAdmin && (parseInt(givePointsData.points || 0, 10) > userPoints))}
+                                className={`w-full py-3 rounded-xl font-bold transition shadow-lg ${(!givePointsData.recipient_id || !givePointsData.points || (!isAdmin && (parseInt(givePointsData.points || 0, 10) > userPoints))) ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-[#266ECD] text-white hover:bg-opacity-90'}`}
                             >
-                                Send Points
+                                {(!isAdmin && parseInt(givePointsData.points || 0, 10) > userPoints) ? 'Insufficient points' : 'Send Points'}
                             </button>
                         </div>
                     </div>
@@ -335,17 +438,24 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             </p>
                         </div>
                     </div>
-
-                    {/* Delete Button */}
-                    <button
-                        onClick={onDelete}
-                        className="text-gray-400 hover:text-[#88AAFF] transition-colors p-1"
-                        title="Delete Post"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    {/* Delete Button - visible to the sender or Admin */}
+                    {(() => {
+                        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        if (currentUser && currentUser.id && (currentUser.id === appreciation.sender_id || currentUser.role === 'Admin')) {
+                            return (
+                                <button
+                                    onClick={onDelete}
+                                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                    title="Delete Post"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            );
+                        }
+                        return null;
+                    })()}
                 </div>
 
                 {/* Quote Box */}
@@ -366,18 +476,16 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                 <div className="flex items-center gap-6 mt-4 pt-4 border-t border-orange-50">
                     <button
                         onClick={onLike}
-                        className={`flex items-center gap-2 transition-colors ${
-                            appreciation.user_liked
+                        className={`flex items-center gap-2 transition-colors ${appreciation.user_liked
                                 ? 'text-red-500'
                                 : 'text-gray-500 hover:text-[#88AAFF]'
-                        }`}
+                            }`}
                     >
                         <svg
-                            className={`w-6 h-6 ${
-                                appreciation.user_liked
+                            className={`w-6 h-6 ${appreciation.user_liked
                                     ? 'fill-current'
                                     : 'fill-none stroke-current'
-                            }`}
+                                }`}
                             viewBox="0 0 24 24"
                             strokeWidth={2}
                         >

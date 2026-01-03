@@ -12,8 +12,23 @@ export const addJob = async (req, res) => {
 
 // Get all jobs
 export const fetchJobs = async (req, res) => {
-  const result = await getJobs();
-  res.json(result.rows);
+  try {
+    const { search, location, experience, limit, offset, order, dir } = req.query;
+    const opts = {
+      search,
+      location,
+      experience,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+      order: order || 'created_at',
+      dir: dir === 'ASC' ? 'ASC' : 'DESC'
+    };
+
+    const result = await getJobs(opts);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch jobs' });
+  }
 };
 
 // Delete a job

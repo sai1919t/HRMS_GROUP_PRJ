@@ -2,169 +2,467 @@ import React, { useState, useEffect } from "react";
 import coin from "../assets/coin.png";
 import medal from "../assets/medal.png";
 import trophy from "../assets/trophy.png";
-import { createEmployeeOfMonth, getAllUsers } from "../services/employeeOfMonthService";
 
 export default function RecognitionPage() {
   const [selectedSection, setSelectedSection] = useState("recipient");
+  const [selectedRecipientId, setSelectedRecipientId] = useState(null);
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [recognitions, setRecognitions] = useState([]);
+
+  const fetchData = async () => {
+    try {
+      // Fetch Users
+      const userRes = await fetch("http://localhost:3000/api/users", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const userData = await userRes.json();
+      setUsers(userData.users || []);
+
+      // Fetch Leaderboard
+      const leaderboardRes = await fetch("http://localhost:3000/api/appreciations/leaderboard", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const leaderboardData = await leaderboardRes.json();
+      const loggedInUser = JSON.parse(localStorage.getItem("user"));
+
+      if (leaderboardData.success) {
+        const mappedLeaderboard = leaderboardData.data.map(user => {
+          const colors = ["bg-yellow-100 text-yellow-800", "bg-blue-100 text-blue-800", "bg-purple-200 text-purple-800", "bg-gray-100 text-gray-800", "bg-green-100 text-green-800"];
+          const colorClass = colors[user.id % colors.length];
+          const [avatarColor, textColor] = colorClass.split(" text-");
+
+          return {
+            ...user,
+            isCurrentUser: loggedInUser && user.id === loggedInUser.id,
+            avatarColor: avatarColor.trim(),
+            textColor: `text-${textColor.trim()}`
+          };
+        });
+        setLeaderboard(mappedLeaderboard);
+      }
+
+      // Fetch Recent Recognitions
+      const appRes = await fetch("http://localhost:3000/api/appreciations?source=recognition", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      const appData = await appRes.json();
+      if (appData.success) {
+        const mappedRecognitions = appData.data.map(item => ({
+          id: item.id,
+          name: item.recipient_name, // Display Recipient Name
+          time: new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          message: item.message,
+          points: `+${item.points} points`,
+          badge: item.category,
+          avatar: item.recipient_profile_picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.recipient_name)}&background=random`,
+
+          // Extra fields for recent recognition card
+          created_at: item.created_at,
+          sender_name: item.sender_name,
+          user_liked: item.user_liked,
+          likes_count: item.likes_count,
+          recipient_name: item.recipient_name,
+        }));
+        setRecognitions(mappedRecognitions);
+      }
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+
+
   const [formData, setFormData] = useState({
     recipientName: "",
     department: "IT & Systems",
     employeeId: "",
     jobTitle: "",
-  });
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await getAllUsers();
-        setUsers(data);
-      } catch (err) {
-        console.error("Failed to fetch users", err);
-      }
-    };
-    fetchUsers();
-  }, []);
+    appreciationType: "",
+    achievement: "",
+    appreciationDate: "",
+
+    contextMessage: "",
+    visibility: "",
+    approval: "manager"
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleNext = async () => {
+  const handleSubmit = async () => {
+    if (!selectedRecipientId) {
+      alert("Please select a valid recipient from the list");
+      return;
+    }
+
+
+    const loggedInUser = JSON.parse(localStorage.getItem("user"));
+    if (loggedInUser && selectedRecipientId === loggedInUser.id) {
+      alert("You cannot appreciate yourself");
+      return;
+    }
     try {
-      if (!formData.recipientName) {
-        alert("Please select a recipient");
-        return;
-      }
+      const payload = {
+        recipient_id: Number(selectedRecipientId), // MUST be number
+        title: `${formData.appreciationType} Appreciation`,
+        category: formData.appreciationType,
+        message: `${formData.achievement}${formData.contextMessage ? "\n\n" + formData.contextMessage : ""}`,
+        emoji: "🎉",
+        points: 0, // You might want to assign points based on type later
+        source: "recognition"
+      };
 
-      // Find user ID based on selection
-      const selectedUser = users.find(u => u.fullname === formData.recipientName);
-      if (!selectedUser) {
-        alert("Please select a valid user from the list");
-        return;
-      }
+      console.log("Submitting payload:", payload);
 
-      await createEmployeeOfMonth(
-        selectedUser.id,
-        `${formData.jobTitle} - ${formData.department}`, // Using description for title/dept
-        new Date().toLocaleString('default', { month: 'long' }),
-        [] // No team members for now
-      );
-
-      alert("Employee of the Month nominated successfully!");
-      // Reset form
-      setFormData({
-        recipientName: "",
-        department: "IT & Systems",
-        employeeId: "",
-        jobTitle: "",
+      const res = await fetch("http://localhost:3000/api/appreciations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}` // REQUIRED
+        },
+        body: JSON.stringify(payload)
       });
-    } catch (error) {
-      console.error("Error submitting nomination:", error);
-      alert("Failed to submit nomination");
+
+      if (res.status === 401) {
+        alert("Session expired. Please login again.");
+        localStorage.removeItem("token");
+        return;
+      }
+      const data = await res.json();
+      console.log("RESPONSE:", data);
+      if (!res.ok) {
+        throw new Error(data.message || "Backend error");
+      }
+
+      alert("Appreciation sent successfully");
+
+      // Refresh the data to show the new appreciation and updated leaderboard
+      fetchData();
+
+      // Reset relevant form fields
+      setFormData(prev => ({
+        ...prev,
+        recipientName: "",
+        employeeId: "",
+        appreciationType: "",
+        achievement: "",
+        contextMessage: ""
+      }));
+      setSelectedRecipientId(null);
+
+    } catch (err) {
+      console.error("FULL ERROR:", err);
+      alert(err.message || "Something went wrong");
     }
   };
 
-  const leaderboard = [
-    {
-      id: 1,
-      name: "Alex Chen",
-      points: 3245,
-      rank: 1,
-      isCurrentUser: false,
-      avatarColor: "bg-yellow-100",
-      textColor: "text-yellow-800",
-    },
-    {
-      id: 2,
-      name: "Lisa Park",
-      points: 2987,
-      rank: 2,
-      isCurrentUser: false,
-      avatarColor: "bg-blue-100",
-      textColor: "text-blue-800",
-    },
-    {
-      id: 3,
-      name: "You",
-      points: 2847,
-      rank: 3,
-      isCurrentUser: true,
-      avatarColor: "bg-purple-200",
-      textColor: "text-purple-800",
-    },
-    {
-      id: 4,
-      name: "David Kim",
-      points: 2654,
-      rank: 4,
-      isCurrentUser: false,
-      avatarColor: "bg-gray-100",
-      textColor: "text-gray-800",
-    },
-    {
-      id: 5,
-      name: "Tom Rodriguez",
-      points: 2432,
-      rank: 5,
-      isCurrentUser: false,
-      avatarColor: "bg-green-100",
-      textColor: "text-green-800",
-    },
-  ];
 
-  const recognitions = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      time: "2 hours ago",
-      message:
-        "Congratulations on completing the Q3 project ahead of schedule! Your dedication is inspiring.",
-      points: "+50 points",
-      badge: "Top Performer Badge",
-      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-    },
-    {
-      id: 2,
-      name: "Mike Davis",
-      time: "1 day ago",
-      message:
-        "Thank you for mentoring the new team members. Your guidance has been invaluable!",
-      points: "+30 points",
-      badge: "Team Player Badge",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    },
-  ];
+  const renderRecipientForm = () => (
+    <>
 
-  return (
-    <div>
-      {/* HEADER */}
-      <div className="flex items-center justify-between p-6 bg-[#F6F8FA] border-b">
+      <h2 className="text-lg font-semibold text-purple-700">
+        Select the Recipient
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Choose a colleague you'd like to appreciate
+      </p>
+
+      {/* Recipient Name */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Recipient
+        </label>
+
+        <input
+          type="text"
+          value={formData.recipientName}
+          onChange={(e) => {
+            const value = e.target.value;
+            setFormData(prev => ({ ...prev, recipientName: value }));
+
+            const matches = users.filter(user =>
+              user.fullname.toLowerCase().includes(value.toLowerCase())
+            );
+
+            setFilteredUsers(matches);
+          }}
+          placeholder="Enter recipient name"
+          className="w-full p-3 border rounded-lg"
+        />
+        {filteredUsers.length > 0 && (
+          <ul className="border rounded-lg mt-1 bg-white max-h-40 overflow-y-auto">
+            {filteredUsers.map(user => (
+              <li
+                key={user.id}
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, recipientName: user.fullname }));
+                  setSelectedRecipientId(user.id);
+                  setFilteredUsers([]);
+                }}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+              >
+                {user.fullname}
+              </li>
+            ))}
+          </ul>
+        )}
+
+      </div>
+
+
+      {/* Department */}
+      <div className="mb-4">
+        <label className="block text-sm font-semibold mb-1">
+          Department/Team
+        </label>
+        <select
+          name="department"
+          value={formData.department}
+          onChange={handleChange}
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="IT & Systems">IT & Systems</option>
+          <option value="HR">HR</option>
+          <option value="Finance">Finance</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Operations">Operations</option>
+        </select>
+      </div>
+
+      {/* Employee ID + Job Title */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Appreciate Peers</h1>
-          <p className="text-sm text-gray-500">
-            Recognize, appreciate, reward – celebrate your exceptional peers
-          </p>
+          <label className="block text-sm font-semibold mb-1">
+            Employee ID
+          </label>
+          <input
+            type="text"
+            name="employeeId"
+            value={formData.employeeId}
+            onChange={handleChange}
+            placeholder="Enter ID"
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          />
         </div>
 
-        <div className="flex items-center gap-2">
-          <img
-            src="https://i.pravatar.cc/40?img=12"
-            alt="avatar"
-            className="w-10 h-10 rounded-full object-cover"
-          />
-          <div className="flex flex-col items-start">
-            <span className="text-sm font-semibold text-gray-700 cursor-pointer">
-              HR Username ▼
-            </span>
-            <span className="text-xs text-gray-500">
-              hr.username@example.com
-            </span>
-          </div>
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Job Title
+          </label>
+          <select
+            name="jobTitle"
+            value={formData.jobTitle}
+            onChange={handleChange}
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          >
+            <option value="">Select</option>
+            <option value="Software Engineer">Software Engineer</option>
+            <option value="Senior Developer">Senior Developer</option>
+            <option value="Team Lead">Team Lead</option>
+            <option value="Manager">Manager</option>
+            <option value="Director">Director</option>
+          </select>
         </div>
       </div>
 
+
+
+    </>
+  );
+
+  const renderAppreciationForm = () => (
+    <>
+      <h2 className="text-lg font-semibold text-purple-700">
+        Reason for Appreciation
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Tell us why your colleague deserves appreciation
+      </p>
+
+      {/* Type of Appreciation */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Type of Appreciation
+        </label>
+        <select
+          name="appreciationType"
+          value={formData.appreciationType}
+          onChange={handleChange}
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="">Select</option>
+          <option value="Teamwork">Teamwork</option>
+          <option value="Leadership">Leadership</option>
+          <option value="Innovation">Innovation</option>
+          <option value="Outstanding Performance">Outstanding Performance</option>
+        </select>
+      </div>
+
+      {/* Specific Achievement */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Specific Achievement
+        </label>
+        <textarea
+          name="achievement"
+          value={formData.achievement}
+          onChange={handleChange}
+          rows="3"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          placeholder="Describe the action"
+        />
+      </div>
+
+      {/* Date + Attachment */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Date
+          </label>
+          <input
+            type="date"
+            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold mb-1">
+            Attachments (Optional)
+          </label>
+          <label className="flex items-center justify-center gap-2 w-full p-3 border border-dashed border-purple-400 rounded-lg cursor-pointer text-purple-600 font-medium hover:bg-purple-50">
+            Choose a File
+            <input type="file" className="hidden" />
+          </label>
+        </div>
+      </div>
+    </>
+  );
+
+
+  const renderDetailsForm = () => (
+    <>
+      <h2 className="text-lg font-semibold text-purple-700">
+        Add Context (Optional)
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Share any additional details or a personal message
+      </p>
+
+      {/* Message */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Message
+        </label>
+        <textarea
+          name="contextMessage"
+          value={formData.contextMessage}
+          onChange={handleChange}
+          maxLength={150}
+          rows="4"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+          placeholder="Describe the action"
+        />
+        <div className="text-xs text-gray-400 text-right mt-1">
+          0/150
+        </div>
+      </div>
+
+      {/* Visibility */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold mb-1">
+          Choose who can see the appreciation
+        </label>
+        <select
+          name="visibility"
+          className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
+        >
+          <option value="">Select</option>
+          <option value="public">Public</option>
+          <option value="team">Team Only</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+
+      {/* Approval options */}
+      <div className="space-y-2 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="approval"
+            value="manager"
+            defaultChecked
+          />
+          This post will be sent to admin/manager for approval
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="radio" name="approval" value="notify" />
+          Send notification to the recipient
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input type="radio" name="approval" value="comments" />
+          Allow others to comment or add to the appreciation
+        </label>
+      </div>
+    </>
+  );
+
+  // const [appreciations, setAppreciations] = useState([]); // Removed duplicate state
+  // const [isAdmin, setIsAdmin] = useState(false); // Declared above if needed? Wait, let's check.
+  // Actually isAdmin is used later, let's just keep isAdmin if it wasn't duplicated. 
+  // I need to check where isAdmin is first declared. It is NOT declared at top.
+  // So I should keep isAdmin but remove appreciations.
+
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const base = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+
+  const toggleLike = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/api/appreciations/${id}/like`, { method: 'POST', headers: { Authorization: token ? `Bearer ${token}` : '' } });
+      if (!res.ok) {
+        console.error('like failed', res.status);
+        return;
+      }
+      // Refresh list
+      fetchData();
+      // Notify other pages
+      try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
+    } catch (err) {
+      console.error('Error toggling like', err);
+    }
+  };
+
+  const grantPoints = async (userId) => {
+    const amt = parseInt(prompt('Enter points to grant (positive integer)'), 10);
+    if (!amt || isNaN(amt)) return;
+    const reason = prompt('Optional reason for points') || '';
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${base}/api/admin/users/${userId}/points`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }, body: JSON.stringify({ amount: amt, reason }) });
+      if (!res.ok) { alert('Failed to grant points'); return; }
+      fetchData();
+      window.dispatchEvent(new CustomEvent('activity:updated'));
+      alert('Points granted');
+    } catch (err) { console.error('Grant points failed', err); alert('Failed to grant points'); }
+  };
+
+
+
+  return (
+    <div>
       <div className="p-6">
         {/* MAIN GRID */}
         <div className="grid grid-cols-[340px_1fr] gap-8">
@@ -176,14 +474,14 @@ export default function RecognitionPage() {
                 key={section}
                 onClick={() => setSelectedSection(section)}
                 className={`p-4 rounded-xl cursor-pointer border transition ${selectedSection === section
-                    ? "border-purple-500 bg-white shadow-sm"
-                    : "border-gray-200 bg-gray-50"
+                  ? "border-purple-500 bg-white shadow-sm"
+                  : "border-gray-200 bg-gray-50"
                   }`}
               >
                 <h3
                   className={`text-sm font-semibold ${selectedSection === section
-                      ? "text-purple-600"
-                      : "text-gray-900"
+                    ? "text-purple-600"
+                    : "text-gray-900"
                     }`}
                 >
                   {section === "recipient"
@@ -211,8 +509,8 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-2">
-                {leaderboard.map((user) => {
-                  const rowClasses = user.isCurrentUser
+                {users.slice(0, 5).map((user, idx) => {
+                  const rowClasses = user.id === JSON.parse(localStorage.getItem('user') || '{}').id
                     ? "border border-purple-500 bg-purple-50"
                     : "border border-transparent bg-gray-50 hover:bg-gray-100";
 
@@ -223,13 +521,13 @@ export default function RecognitionPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-7 w-7 flex items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-800">
-                          {user.rank}
+                          {idx + 1}
                         </div>
 
                         <div
-                          className={`h-9 w-9 flex items-center justify-center rounded-full text-xs font-semibold ${user.avatarColor} ${user.textColor}`}
+                          className={`h-9 w-9 flex items-center justify-center rounded-full text-xs font-semibold bg-gray-100 text-gray-800`}
                         >
-                          {user.name
+                          {user.fullname
                             .split(" ")
                             .map((n) => n[0])
                             .join("")}
@@ -237,29 +535,32 @@ export default function RecognitionPage() {
 
                         <div>
                           <p
-                            className={`text-xs font-semibold ${user.isCurrentUser
-                                ? "text-purple-700"
-                                : "text-gray-900"
+                            className={`text-xs font-semibold ${user.id === JSON.parse(localStorage.getItem('user') || '{}').id
+                              ? "text-purple-700"
+                              : "text-gray-900"
                               }`}
                           >
-                            {user.name}
+                            {user.fullname}
                           </p>
                           <p className="text-[11px] text-gray-500">
-                            {user.points.toLocaleString()} points
+                            {user.points?.toLocaleString() || 0} points
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {user.rank === 1 && <span className="text-lg">👑</span>}
-                        {user.isCurrentUser ? (
+                        {idx === 0 && <span className="text-lg">👑</span>}
+                        {user.id === JSON.parse(localStorage.getItem('user') || '{}').id ? (
                           <span className="rounded-full bg-purple-600 px-2 py-1 text-[10px] font-semibold text-white">
                             You
                           </span>
                         ) : (
-                          <span className="text-[11px] text-gray-500 font-medium">
-                            #{user.rank}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-gray-500 font-medium">#{idx + 1}</span>
+                            {isAdmin && (
+                              <button onClick={() => grantPoints(user.id)} className="ml-2 text-sm bg-blue-600 text-white px-2 py-1 rounded-md">Grant</button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -277,7 +578,7 @@ export default function RecognitionPage() {
               <div className="flex items-center justify-between h-24 rounded-2xl px-5 bg-linear-to-r from-blue-900 to-blue-700 text-white shadow">
                 <div className="flex flex-col">
                   <span className="text-sm opacity-90">Total Points</span>
-                  <span className="text-2xl font-semibold">2,847</span>
+                  <span className="text-2xl font-semibold">{(JSON.parse(localStorage.getItem('user') || '{}').points || 0).toLocaleString()}</span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
                   <img src={coin} alt="Coin Icon" className="w-12 h-12" />
@@ -299,7 +600,14 @@ export default function RecognitionPage() {
               <div className="flex items-center justify-between h-24 rounded-2xl px-5 bg-gray-100 text-gray-800 shadow">
                 <div>
                   <span className="text-sm text-gray-600">Current Rank</span>
-                  <span className="text-2xl font-semibold block">#3</span>
+                  <span className="text-2xl font-semibold block">{(() => {
+                    try {
+                      const localUser = JSON.parse(localStorage.getItem('user') || '{}');
+                      if (!localUser || !localUser.id || !users || users.length === 0) return '#-';
+                      const idx = users.findIndex(u => u.id === localUser.id);
+                      return idx >= 0 ? `#${idx + 1}` : '#-';
+                    } catch (e) { return '#-'; }
+                  })()}</span>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-green-200 flex items-center justify-center">
                   <img src={trophy} alt="Trophy Icon" className="w-12 h-12" />
@@ -308,96 +616,35 @@ export default function RecognitionPage() {
             </div>
 
             {/* FORM CARD */}
-            <div className="bg-gray-100 rounded-2xl p-6 shadow">
-              <h2 className="text-lg font-semibold text-purple-700">
-                Select the Recipient
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Choose a colleague you'd like to appreciate
-              </p>
+            <div className="bg-gray-100 rounded-2xl p-6 shadow transition-all">
+              {selectedSection === "recipient" && renderRecipientForm()}
+              {selectedSection === "appreciation" && renderAppreciationForm()}
+              {selectedSection === "details" && renderDetailsForm()}
 
-              {/* Recipient Name */}
-              <div className="mb-5">
-                <label className="block text-sm font-semibold mb-1">
-                  Recipient Name
-                </label>
-                <select
-                  name="recipientName"
-                  value={formData.recipientName}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                >
-                  <option value="">Select Employee</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.fullname}>{user.fullname}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Department */}
-              <div className="mb-4">
-                <label className="block text-sm font-semibold mb-1">
-                  Department/Team
-                </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                >
-                  <option value="IT & Systems">IT & Systems</option>
-                  <option value="HR">HR</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Operations">Operations</option>
-                </select>
-              </div>
-
-              {/* Employee ID + Job Title */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    Employee ID
-                  </label>
-                  <input
-                    type="text"
-                    name="employeeId"
-                    value={formData.employeeId}
-                    onChange={handleChange}
-                    placeholder="Enter ID"
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    Job Title
-                  </label>
-                  <select
-                    name="jobTitle"
-                    value={formData.jobTitle}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400"
-                  >
-                    <option value="">Select</option>
-                    <option value="Software Engineer">Software Engineer</option>
-                    <option value="Senior Developer">Senior Developer</option>
-                    <option value="Team Lead">Team Lead</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Director">Director</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
+              {/* FOOTER BUTTONS */}
+              <div className="flex justify-end mt-6">
                 <button
-                  onClick={handleNext}
+                  onClick={() => {
+                    if (selectedSection === "recipient") {
+                      setSelectedSection("appreciation");
+                      return;
+                    }
+
+                    if (selectedSection === "appreciation") {
+                      setSelectedSection("details");
+                      return;
+                    }
+
+                    // details step
+                    handleSubmit();
+                  }}
                   className="bg-blue-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-800 transition"
                 >
-                  Next step
+                  {selectedSection === "details" ? "Send Appreciation" : "Next step"}
                 </button>
               </div>
             </div>
+
 
             {/* RECENT RECOGNITION */}
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -406,44 +653,36 @@ export default function RecognitionPage() {
               </h3>
 
               <div className="space-y-3">
-                {recognitions.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="border border-gray-200 rounded-lg p-3 shadow-sm"
-                  >
-                    <div className="flex items-center mb-2">
-                      <img
-                        src={rec.avatar}
-                        alt={rec.name}
-                        className="w-9 h-9 rounded-full mr-2.5 object-cover"
-                      />
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-800">
-                          {rec.name}
-                        </h4>
-                        <span className="text-xs text-gray-500">{rec.time}</span>
+                {recognitions.length === 0 ? (
+                  <p className="text-sm text-gray-500">No appreciations yet.</p>
+                ) : (
+                  recognitions.map((a) => (
+                    <div key={a.id} className="border border-gray-200 rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center mb-2">
+                        <div className="w-9 h-9 rounded-full mr-2.5 bg-gray-200 flex items-center justify-center">{a.sender_name?.split(' ').map(n => n[0]).join('')}</div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-800">{a.sender_name}</h4>
+                          <span className="text-xs text-gray-500">{new Date(a.created_at).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-2.5">{a.message}</p>
+
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleLike(a.id)} className={`px-3 py-1 rounded-md ${a.user_liked ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                          {a.user_liked ? 'Liked' : 'Like'} • {a.likes_count}
+                        </button>
+                        <span className="text-sm text-gray-500">{a.recipient_name}</span>
                       </div>
                     </div>
-
-                    <p className="text-sm text-gray-600 mb-2.5">
-                      {rec.message}
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <span className="bg-purple-500 text-white text-xs px-2.5 py-0.5 rounded-full font-medium">
-                        {rec.points}
-                      </span>
-                      <span className="text-purple-600 text-sm font-medium">
-                        {rec.badge}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div >
+
   );
 }

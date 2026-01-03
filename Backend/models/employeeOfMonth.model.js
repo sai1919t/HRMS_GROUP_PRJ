@@ -119,3 +119,10 @@ export const deleteTeamMember = async (teamMemberId) => {
   const { rows } = await pool.query(query, [teamMemberId]);
   return rows[0];
 };
+
+// Delete employee of the month
+export const deleteEmployeeOfMonth = async (id) => {
+  const query = "DELETE FROM employee_of_month WHERE id = $1 RETURNING *;";
+  const { rows } = await pool.query(query, [id]);
+  return rows[0];
+};

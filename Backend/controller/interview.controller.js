@@ -1,8 +1,12 @@
 import pool from "../db/db.js";
 
-// Schedule an interview
+// Schedule an interview (Admin only)
 export const scheduleInterview = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Forbidden: Admins only' });
+    }
+
     const {
       application_id,
       interview_date,

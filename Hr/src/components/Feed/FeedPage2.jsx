@@ -6,6 +6,11 @@ import {
     addComment,
     getComments
 } from '../../services/appreciationService';
+// Ensure you have created this file in src/services/meetingService.js
+import { getUpcomingMeetings } from '../../services/meetingService';
+import { Link } from 'react-router-dom';
+import { getAllEvents } from '../../services/event.service';
+import Promotion from '../../pages/Promotion';
 
 const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateForm }) => {
     const [appreciations, setAppreciations] = useState([]);
@@ -14,16 +19,46 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     const [commentInputs, setCommentInputs] = useState({});
     const [showComments, setShowComments] = useState({});
     const [comments, setComments] = useState({});
+    const [meetings, setMeetings] = useState([]);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [userPoints, setUserPoints] = useState(0);
 
-    // Fetch appreciations on component mount
     useEffect(() => {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            setIsAdmin(user.role === 'Admin');
+        }
         fetchAppreciations();
+        fetchMeetings();
+
+        const fetchUserPoints = async () => {
+            try {
+                const u = JSON.parse(localStorage.getItem('user') || '{}');
+                if (!u || !u.id) return;
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}/api/users/${u.id}`, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                setUserPoints(data.user?.points || 0);
+                if (data.user) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                }
+            } catch (err) {
+                console.error('Failed to fetch user points', err);
+            }
+        };
+
+        fetchUserPoints();
+        const onActivity = () => fetchUserPoints();
+        window.addEventListener('activity:updated', onActivity);
+        return () => window.removeEventListener('activity:updated', onActivity);
     }, []);
 
     const fetchAppreciations = async () => {
         try {
             setLoading(true);
-            const response = await getAllAppreciations();
+            const response = await getAllAppreciations('feed');
             if (response.success) {
                 setAppreciations(response.data);
             }
@@ -35,10 +70,85 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
         }
     };
 
+    const fetchMeetings = async () => {
+        try {
+            const res = await getUpcomingMeetings();
+
+            const meetingsData =
+                res?.data?.data ||
+                res?.data ||
+                res?.meetings ||
+                [];
+
+            if (Array.isArray(meetingsData)) {
+                // 1. Get today's date
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // 2. Filter: Keep only future/today meetings
+                const upcomingOnly = meetingsData.filter((meeting) => {
+                    const meetingDate = new Date(meeting.meeting_date);
+                    // Reset meeting time to midnight for accurate date comparison
+                    meetingDate.setHours(0, 0, 0, 0);
+                    return meetingDate >= today;
+                });
+
+                // 3. Sort: Compare Date AND Time
+                upcomingOnly.sort((a, b) => {
+                    // Create Date objects for sorting
+                    const dateA = new Date(a.meeting_date);
+                    const dateB = new Date(b.meeting_date);
+
+                    // If dates are different, sort by date
+                    if (dateA.getTime() !== dateB.getTime()) {
+                        return dateA - dateB;
+                    }
+
+                    // If dates are the same, compare times (HH:MM:SS)
+                    // We treat the time strings like "11:00:00" vs "19:00:00"
+                    if (a.start_time < b.start_time) return -1;
+                    if (a.start_time > b.start_time) return 1;
+                    return 0;
+                });
+
+                // 4. Update state with the nearest meeting at index 0
+                setMeetings(upcomingOnly);
+            }
+        } catch (err) {
+            console.error('Failed to load meetings:', err);
+        }
+    };
+
+    // Events for feed
+    const [events, setEvents] = useState([]);
+    const [eventsLoading, setEventsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchEvents = async () => {
+            try {
+                setEventsLoading(true);
+                const res = await getAllEvents();
+                const ev = Array.isArray(res) ? res : (res.events || res);
+                setEvents(ev || []);
+            } catch (err) {
+                console.error('Failed to fetch events', err);
+            } finally {
+                setEventsLoading(false);
+            }
+        };
+        fetchEvents();
+        const onEventsUpdated = () => fetchEvents();
+        window.addEventListener('events:updated', onEventsUpdated);
+        window.addEventListener('activity:updated', onEventsUpdated);
+        return () => {
+            window.removeEventListener('events:updated', onEventsUpdated);
+            window.removeEventListener('activity:updated', onEventsUpdated);
+        };
+    }, []);
+
     const handleLike = async (appreciationId) => {
         try {
             await toggleLike(appreciationId);
-            // Refresh appreciations to get updated like count
             fetchAppreciations();
         } catch (err) {
             console.error('Error toggling like:', err);
@@ -49,8 +159,8 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
         if (window.confirm('Are you sure you want to delete this appreciation?')) {
             try {
                 await deleteAppreciation(appreciationId);
-                // Remove from local state
                 setAppreciations(prev => prev.filter(a => a.id !== appreciationId));
+                try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
             } catch (err) {
                 alert('Failed to delete appreciation. You can only delete your own posts.');
                 console.error(err);
@@ -71,14 +181,11 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
 
         try {
             await addComment(appreciationId, commentText);
-            // Clear input
             setCommentInputs(prev => ({
                 ...prev,
                 [appreciationId]: ''
             }));
-            // Refresh appreciations
             fetchAppreciations();
-            // Refresh comments if they're shown
             if (showComments[appreciationId]) {
                 fetchComments(appreciationId);
             }
@@ -96,7 +203,6 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
             [appreciationId]: !isCurrentlyShown
         }));
 
-        // Fetch comments if showing
         if (!isCurrentlyShown) {
             fetchComments(appreciationId);
         }
@@ -117,11 +223,13 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     };
 
     const formatTime = (dateString) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     };
@@ -136,15 +244,17 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         <p className="text-sm text-gray-500 mt-1">Stay Connected and Informed: Your Hub for Updates and Interaction</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={onNavigateToCreateForm}
-                            className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>New</span>
-                        </button>
+                        {(
+                            <button
+                                onClick={onNavigateToCreateForm}
+                                className="flex items-center gap-2 bg-[#266ECD] text-white px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-all shadow-md"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span>New</span>
+                            </button>
+                        )}
                         <button
                             onClick={fetchAppreciations}
                             className="text-red-500 hover:text-red-600"
@@ -168,7 +278,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                 Employee of the Month
                             </button>
                             <button className="pb-3 text-gray-500 hover:text-gray-900 font-medium">
-                                Promotions
+                                <Link to="/promotion">Promotions</Link>
                             </button>
                         </div>
 
@@ -191,21 +301,23 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         {!loading && !error && appreciations.length === 0 && (
                             <div className="bg-white rounded-2xl shadow-md p-12 text-center">
                                 <p className="text-gray-500 text-lg">No appreciations yet. Be the first to create one!</p>
-                                <button
-                                    onClick={onNavigateToCreateForm}
-                                    className="mt-4 bg-[#266ECD] text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90"
-                                >
-                                    Create Appreciation
-                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={onNavigateToCreateForm}
+                                        className="mt-4 bg-[#266ECD] text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90"
+                                    >
+                                        Create Appreciation
+                                    </button>
+                                )}
                             </div>
                         )}
 
-                        {!loading && appreciations.filter(a => !a.points || a.points === 0).map((appreciation) => (
+                        {!loading && appreciations.map((appreciation) => (
                             <div key={appreciation.id} className="bg-white rounded-2xl shadow-md overflow-hidden">
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
+                                            <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold">
                                                 {appreciation.sender_name?.charAt(0) || 'U'}
                                             </div>
                                             <div>
@@ -217,7 +329,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                             <span className="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm font-bold flex items-center gap-1">
                                                 APPRECIATED 🎉
                                             </span>
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
+                                            <div className="w-12 h-12 rounded-full bg-linear-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
                                                 {appreciation.recipient_name?.charAt(0) || 'U'}
                                             </div>
                                         </div>
@@ -225,7 +337,7 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
 
                                     <div className="flex items-center gap-3 mb-5">
                                         <span className="text-sm text-gray-600">to</span>
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
+                                        <div className="w-10 h-10 rounded-full bg-linear-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold">
                                             {appreciation.recipient_name?.charAt(0) || 'U'}
                                         </div>
                                         <div>
@@ -266,6 +378,11 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                             </svg>
                                             <span className="font-bold text-base">{appreciation.likes_count || 0}</span>
                                         </button>
+                                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                                            {appreciation.points > 0 && (
+                                                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-semibold">+{appreciation.points} pts</span>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => toggleCommentsView(appreciation.id)}
                                             className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
@@ -275,15 +392,23 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                             </svg>
                                             <span className="font-medium">{appreciation.comments_count || 0}</span>
                                         </button>
-                                        <button
-                                            onClick={() => handleDelete(appreciation.id)}
-                                            className="ml-auto text-red-500 hover:text-red-700"
-                                            title="Delete appreciation"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
+                                        {(() => {
+                                            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                                            if (currentUser && currentUser.id && (currentUser.id === appreciation.sender_id || currentUser.role === 'Admin')) {
+                                                return (
+                                                    <button
+                                                        onClick={() => handleDelete(appreciation.id)}
+                                                        className="ml-auto text-red-500 hover:text-red-700"
+                                                        title="Delete appreciation"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                );
+                                            }
+                                            return null;
+                                        })()} 
                                     </div>
 
                                     {/* Comments Section */}
@@ -345,14 +470,14 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                         <div className="bg-white rounded-2xl shadow-md p-6">
                             <h3 className="text-lg font-bold text-[#266ECD] mb-4">New Point Alert!</h3>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="text-5xl font-bold text-[#266ECD]">250</div>
+                                <div className="text-5xl font-bold text-[#266ECD]">{userPoints?.toLocaleString() || 0}</div>
                                 <div className="w-10 h-10 rounded-full bg-[#266ECD] flex items-center justify-center">
                                     <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 </div>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">Reward points with Manager</p>
+                            <p className="text-sm text-gray-600 mb-4">Reward points balance</p>
                             <button
                                 onClick={onNavigateToPage2}
                                 className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg"
@@ -361,23 +486,38 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                             </button>
                         </div>
 
-                        {/* Don't Miss Out! Training Session */}
+                        {/* Don't Miss Out! Upcoming Training Session */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
-                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">Don't Miss Out! Upcoming Training Session</h3>
-                            <div className="space-y-2 mb-5">
-                                <p className="text-sm text-gray-700">
-                                    <span className="font-bold">Date:</span> 29 Oct
-                                </p>
-                                <p className="text-sm text-gray-700">
-                                    <span className="font-bold">Time:</span> 9:00 AM - 12:00 PM
-                                </p>
-                            </div>
-                            <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold hover:bg-opacity-90 transition-all shadow-lg">
+                            <h3 className="text-lg font-bold text-[#266ECD] mb-4">
+                                Don't Miss Out! Upcoming Training Session
+                            </h3>
+
+                            {/* Check if we have at least one meeting */}
+                            {meetings.length > 0 ? (
+                                <div className="space-y-2 mb-5">
+                                    {/* We only render meetings[0] -> The single nearest meeting */}
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {meetings[0].title}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                        <span className="font-bold">Date:</span>{" "}
+                                        {meetings[0].meeting_date ? new Date(meetings[0].meeting_date).toLocaleDateString() : 'TBA'}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                        <span className="font-bold">Time:</span>{" "}
+                                        {meetings[0].start_time} - {meetings[0].end_time}
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500 mb-5">No upcoming meetings</p>
+                            )}
+
+                            <button className="w-full bg-[#266ECD] text-white px-6 py-2.5 rounded-xl font-bold">
                                 Register
                             </button>
                         </div>
 
-                        {/* Upcoming Events */}
+                        {/* Upcoming Events (dynamic) */}
                         <div className="bg-white rounded-2xl shadow-md p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -388,35 +528,26 @@ const FeedPage2 = ({ onNavigateToPage2, onNavigateToPage3, onNavigateToCreateFor
                                 </h3>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Team Building Workshop</p>
-                                        <p className="text-xs text-gray-500">10:00 AM - 1:00 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">13 Oct</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Employee of the Month Award</p>
-                                        <p className="text-xs text-gray-500">4:00 PM - 4:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">20 Oct</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Diversity and Inclusion Seminar</p>
-                                        <p className="text-xs text-gray-500">9:30 AM - 12:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">5 Nov</span>
-                                </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900">Town Hall Meeting</p>
-                                        <p className="text-xs text-gray-500">2:00 PM - 3:30 PM</p>
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-900">10 Nov</span>
-                                </div>
-                                <button className="text-[#266ECD] text-sm font-semibold hover:underline">More...</button>
+                                {eventsLoading ? (
+                                    <p className="text-sm text-gray-500">Loading events...</p>
+                                ) : events.filter(e => new Date(e.event_date) >= new Date().setHours(0,0,0)).length === 0 ? (
+                                    <p className="text-sm text-gray-500">No upcoming events</p>
+                                ) : (
+                                    events
+                                        .filter(e => new Date(e.event_date) >= new Date().setHours(0,0,0))
+                                        .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
+                                        .slice(0,4)
+                                        .map(ev => (
+                                            <div key={ev.id} className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                                                    <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">{`${ev.attendee_count ?? 0} attending`}</span>
+                                            </div>
+                                        ))
+                                )}
+                                <Link to="/event" className="text-[#266ECD] text-sm font-semibold hover:underline">More...</Link>
                             </div>
                         </div>
                     </div>

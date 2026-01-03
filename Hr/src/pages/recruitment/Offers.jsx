@@ -3,6 +3,8 @@ import axios from "axios";
 export default function Offers() {
   const [candidates, setCandidates] = useState([]);
   const [offers, setOffers] = useState([]);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token');
   const [form, setForm] = useState({
     application_id: "",
     position: "",
@@ -28,54 +30,22 @@ export default function Offers() {
 
   const createOffer = async (e) => {
     e.preventDefault();
+
+    if (!user || user.role !== 'Admin') {
+      alert('Only admins can create offers');
+      return;
+    }
+
     await axios.post("http://localhost:3000/api/offers", {
         ...form,
         status: "Pending" 
-    });
+    }, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
     setForm({ application_id: "", position: "", ctc: "", joining_date: "" });
     fetchData();
   };
 
   return (
     <div>
-        <div class="px-8 pt-6">
-  <h1 class="text-2xl font-bold text-[#020839] mb-4">Recruitment</h1>
-  <div class="flex gap-8">
-    <a
-      aria-current="page"
-      class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-[#020839] text-[#020839]"
-      href="/recruitment"
-      data-discover="true"
-    >
-      Jobs
-    </a>
-    <a
-      class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-      href="/recruitment/applications"
-      data-discover="true"
-    >
-      Applications
-    </a>
-    <a
-      class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-      href="/recruitment/interviews"
-      data-discover="true"
-    >
-      Interviews
-    </a>
-    <a
-      class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-      href="/recruitment/offers"
-      data-discover="true"
-    >
-      Offers
-    </a>
-  </div>
-        </div>
     <div className="px-8 mt-10 pb-8">
       <h1 className="text-2xl font-bold mb-6 text-[#020839]">Offer Management</h1>
 
@@ -84,7 +54,8 @@ export default function Offers() {
         <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="font-semibold text-lg mb-4 text-gray-800">Generate Offer</h2>
-                <form onSubmit={createOffer} className="space-y-4">
+                {user && user.role === 'Admin' ? (
+                  <form onSubmit={createOffer} className="space-y-4">
                     <div>
                         <label className="block text-sm text-gray-600 mb-1">Select Candidate</label>
                         <select 
@@ -114,7 +85,10 @@ export default function Offers() {
                             value={form.joining_date} onChange={e => setForm({...form, joining_date: e.target.value})} required />
                     </div>
                     <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm transition">Generate & Send Offer</button>
-                </form>
+                  </form>
+                ) : (
+                  <div className="text-gray-600">Only Admins can create offers. You can view offers below.</div>
+                )}
             </div>
         </div>
 

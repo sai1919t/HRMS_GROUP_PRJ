@@ -3,6 +3,8 @@ import axios from "axios";
 
 export default function Applications() {
   const [applications, setApplications] = useState([]);
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token');
 
   const fetchApplications = async () => {
     // Mocking response for demo if API fails, otherwise use your API
@@ -20,8 +22,8 @@ export default function Applications() {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`http://localhost:3000/api/applications/${id}/status`, {
-        status,
+      await axios.patch(`http://localhost:3000/api/applications/${id}/status`, { status }, {
+        headers: { Authorization: token ? `Bearer ${token}` : '' }
       });
       fetchApplications();
     } catch (e) {
@@ -44,44 +46,6 @@ export default function Applications() {
 
   return (
     <div>
-      <div class="px-8 pt-6">
-        <h1 class="text-2xl font-bold text-[#020839] mb-4">Recruitment</h1>
-        <div class="flex gap-8">
-          <a
-            aria-current="page"
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-[#020839] text-[#020839]"
-            href="/recruitment"
-            data-discover="true"
-          >
-            Jobs
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/applications"
-            data-discover="true"
-          >
-            Applications
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/interviews"
-            data-discover="true"
-          >
-            Interviews
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/offers"
-            data-discover="true"
-          >
-            Offers
-          </a>
-        </div>
-      </div>
       <div className="px-8 pb-8 mt-20">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-[#020839]">Applications</h1>
@@ -129,16 +93,20 @@ export default function Applications() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <select
-                      value={app.status}
-                      onChange={(e) => updateStatus(app.id, e.target.value)}
-                      className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-[#020839]"
-                    >
-                      <option value="APPLIED">Applied</option>
-                      <option value="INTERVIEW">Interview</option>
-                      <option value="SELECTED">Selected</option>
-                      <option value="REJECTED">Rejected</option>
-                    </select>
+                    {user && user.role === 'Admin' ? (
+                      <select
+                        value={app.status}
+                        onChange={(e) => updateStatus(app.id, e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-[#020839]"
+                      >
+                        <option value="APPLIED">Applied</option>
+                        <option value="INTERVIEW">Interview</option>
+                        <option value="SELECTED">Selected</option>
+                        <option value="REJECTED">Rejected</option>
+                      </select>
+                    ) : (
+                      <div className="text-sm text-gray-600">{app.status}</div>
+                    )}
                   </td>
                 </tr>
               ))}

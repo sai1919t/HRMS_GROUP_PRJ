@@ -5,6 +5,8 @@ export default function Interviews() {
   const [applications, setApplications] = useState([]);
   const [interviews, setInterviews] = useState([]);
   const [error, setError] = useState("");
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token');
 
   const [form, setForm] = useState({
     application_id: "",
@@ -39,6 +41,11 @@ export default function Interviews() {
   const scheduleInterview = async (e) => {
     e.preventDefault();
 
+    if (!user || user.role !== 'Admin') {
+      alert('Only admins can schedule interviews');
+      return;
+    }
+
     // ❌ Block temporary candidates
     if (isNaN(Number(form.application_id))) {
       setError("Temporary candidate selected. Please select a real candidate.");
@@ -51,7 +58,7 @@ export default function Interviews() {
       await axios.post("http://localhost:3000/api/interviews", {
         ...form,
         application_id: Number(form.application_id),
-      });
+      }, { headers: { Authorization: token ? `Bearer ${token}` : '' } });
 
       alert("Interview Scheduled Successfully");
 
@@ -72,45 +79,6 @@ export default function Interviews() {
 
   return (
     <div>
-      <div className="px-8 pt-6">
-        <h1 className="text-2xl font-bold text-[#020839] mb-4">Recruitment</h1>
-        <div className="flex gap-8">
-          <a
-            aria-current="page"
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-[#020839] text-[#020839]"
-            href="/recruitment"
-            data-discover="true"
-          >
-            Jobs
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/applications"
-            data-discover="true"
-          >
-            Applications
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/interviews"
-            data-discover="true"
-          >
-            Interviews
-          </a>
-          <a
-            class="pb-3 px-1 font-semibold text-sm uppercase tracking-wide border-b-2 transition-all duration-300
-     border-transparent text-gray-400 hover:text-[#020839] hover:border-gray-300"
-            href="/recruitment/offers"
-            data-discover="true"
-          >
-            Offers
-          </a>
-        </div>
-      </div>
-
       {/* CONTENT */}
       <div className="px-8 mt-10 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* LEFT: FORM */}
@@ -119,10 +87,11 @@ export default function Interviews() {
             Schedule Interview
           </h2>
 
-          <form
-            onSubmit={scheduleInterview}
-            className="bg-white p-6 rounded-lg shadow-sm border"
-          >
+          {user && user.role === 'Admin' ? (
+            <form
+              onSubmit={scheduleInterview}
+              className="bg-white p-6 rounded-lg shadow-sm border"
+            >
             <div className="space-y-4">
               {/* Candidate */}
               <div>
@@ -218,9 +187,11 @@ export default function Interviews() {
                 Schedule Interview
               </button>
             </div>
-          </form>
+            </form>
+          ) : (
+            <div className="bg-white p-6 rounded-lg shadow-sm border text-gray-600">Only Admins can schedule interviews. You can view upcoming interviews here.</div>
+          )}
         </div>
-
         {/* RIGHT: INTERVIEW LIST */}
         <div className="lg:col-span-2">
           <h2 className="text-xl font-bold mb-6 text-[#020839]">

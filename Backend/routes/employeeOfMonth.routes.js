@@ -16,4 +16,7 @@ router.post("/:id/team", authMiddleware, EmployeeOfMonthController.addTeamMember
 // Delete team member
 router.delete("/team/:teamMemberId", authMiddleware, EmployeeOfMonthController.deleteTeamMember);
 
+// Delete employee of the month
+router.delete("/:id", authMiddleware, EmployeeOfMonthController.deleteEmployeeOfMonth);
+
 export default router;
