@@ -1,7 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
-@import "tailwindcss/preflight";
-@tailwind utilities;
 
 :root {
   font-family: 'Inter', sans-serif;
@@ -10,10 +8,6 @@
 body {
   background-color: #f9fafb;
   /* Light gray neutral background */
-}
-
-.dark body {
-  background-color: #020617;   /*Dark mode body bg*/
 }
 
 @keyframes fadeIn {
