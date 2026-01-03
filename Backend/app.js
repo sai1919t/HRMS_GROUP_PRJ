@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import lmsRoutes from "./routes/lms.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import appreciationRoutes from "./routes/appreciation.routes.js";
 import employeeOfMonthRoutes from "./routes/employeeOfMonth.routes.js";
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 initDb();
 
+app.use("/api/lms", lmsRoutes);
 app.use("/api/users", userRoutes);
 // allow updating location via users route (updateUser supports it now)
 import usersRoutes from './routes/users.routes.js';

@@ -94,35 +94,35 @@ const FeedPage1 = ({ onNavigateBack }) => {
     const [eventsLoading, setEventsLoading] = useState(false);
 
     const getEventCategory = (eventDate) => {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const eventDateObj = new Date(eventDate);
-      eventDateObj.setHours(0,0,0,0);
-      return eventDateObj >= today ? 'upcoming' : 'past';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const eventDateObj = new Date(eventDate);
+        eventDateObj.setHours(0, 0, 0, 0);
+        return eventDateObj >= today ? 'upcoming' : 'past';
     };
 
     useEffect(() => {
-      const fetchEvents = async () => {
-        try {
-          setEventsLoading(true);
-          const res = await getAllEvents();
-          const ev = Array.isArray(res) ? res : (res.events || res);
-          setEvents(ev || []);
-        } catch (e) {
-          console.error('Failed to fetch events', e);
-        } finally {
-          setEventsLoading(false);
-        }
-      };
-      fetchEvents();
+        const fetchEvents = async () => {
+            try {
+                setEventsLoading(true);
+                const res = await getAllEvents();
+                const ev = Array.isArray(res) ? res : (res.events || res);
+                setEvents(ev || []);
+            } catch (e) {
+                console.error('Failed to fetch events', e);
+            } finally {
+                setEventsLoading(false);
+            }
+        };
+        fetchEvents();
 
-      const onEventsUpdated = () => fetchEvents();
-      window.addEventListener('events:updated', onEventsUpdated);
-      window.addEventListener('activity:updated', onEventsUpdated);
-      return () => {
-        window.removeEventListener('events:updated', onEventsUpdated);
-        window.removeEventListener('activity:updated', onEventsUpdated);
-      };
+        const onEventsUpdated = () => fetchEvents();
+        window.addEventListener('events:updated', onEventsUpdated);
+        window.addEventListener('activity:updated', onEventsUpdated);
+        return () => {
+            window.removeEventListener('events:updated', onEventsUpdated);
+            window.removeEventListener('activity:updated', onEventsUpdated);
+        };
     }, []);
 
     const handleGivePoints = () => {
@@ -143,7 +143,7 @@ const FeedPage1 = ({ onNavigateBack }) => {
         try {
             await deleteAppreciation(id);
             fetchFeed(); // Refresh to remove deleted item
-            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
         } catch (error) {
             console.error("Failed to delete appreciation", error);
             alert("Failed to delete. You might not have permission.");
@@ -203,9 +203,9 @@ const FeedPage1 = ({ onNavigateBack }) => {
             // Refresh feed to show new card
             fetchFeed();
             // Notify other pages to refresh points and leaderboard
-            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
             // Notify other pages
-            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) {}
+            try { window.dispatchEvent(new CustomEvent('activity:updated')); } catch (e) { }
         } catch (error) {
             console.error(error);
             alert('Failed to send points: ' + (error.message || JSON.stringify(error)));
@@ -328,22 +328,22 @@ const FeedPage1 = ({ onNavigateBack }) => {
                             </div>
                             <div className="space-y-4">
                                 {eventsLoading ? (
-                                  <p className="text-sm text-gray-500">Loading events...</p>
+                                    <p className="text-sm text-gray-500">Loading events...</p>
                                 ) : events.filter(e => getEventCategory(e.event_date) === 'upcoming').length === 0 ? (
-                                  <p className="text-sm text-gray-500">No upcoming events</p>
+                                    <p className="text-sm text-gray-500">No upcoming events</p>
                                 ) : (
-                                  events.filter(e => getEventCategory(e.event_date) === 'upcoming')
-                                    .sort((a,b) => new Date(a.event_date) - new Date(b.event_date))
-                                    .slice(0,3)
-                                    .map(ev => (
-                                      <div className="flex justify-between items-start" key={ev.id}>
-                                        <div>
-                                          <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
-                                          <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-900">{`${ev.attendee_count ?? 0} attending`}</span>
-                                      </div>
-                                    ))
+                                    events.filter(e => getEventCategory(e.event_date) === 'upcoming')
+                                        .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+                                        .slice(0, 3)
+                                        .map(ev => (
+                                            <div className="flex justify-between items-start" key={ev.id}>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
+                                                    <p className="text-xs text-gray-500">{ev.start_time || ''}{ev.end_time ? ` - ${ev.end_time}` : ''}</p>
+                                                </div>
+                                                <span className="text-sm font-bold text-gray-900">{`${ev.attendee_count ?? 0} attending`}</span>
+                                            </div>
+                                        ))
                                 )}
                                 <Link to="/event" className="text-[#266ECD] text-sm font-semibold hover:underline">More...</Link>
                             </div>
@@ -420,7 +420,7 @@ const FeedPage1 = ({ onNavigateBack }) => {
 // 1. Points Card (Visually distinct for points transactions)
 const PointsCard = ({ appreciation, onLike, onDelete }) => {
     return (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden border-2 border-orange-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border-2 border-orange-100 dark:border-orange-900">
             <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
@@ -428,12 +428,14 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             {appreciation.points}
                         </div>
                         <div>
-                            <p className="text-lg font-bold text-gray-900">
+                            <p className="text-lg font-bold text-[#2C50AB] dark:text-[#AACCFF]">
                                 <span className="text-[#266ECD]">{appreciation.sender_name}</span>
                                 <span className="font-normal text-gray-500 mx-2">rewarded</span>
                                 <span className="text-[#266ECD]">{appreciation.recipient_name}</span>
                             </p>
-                            <p className="text-sm text-gray-500">{new Date(appreciation.created_at).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {new Date(appreciation.created_at).toLocaleDateString()}
+                            </p>
                         </div>
                     </div>
                     {/* Delete Button - visible to the sender or Admin */}
@@ -453,11 +455,15 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                             );
                         }
                         return null;
-                    })()} 
+                    })()}
                 </div>
 
-                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
-                    <p className="text-gray-800 font-medium italic">"{appreciation.message}"</p>
+                {/* Quote Box */}
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-100 dark:border-orange-900">
+                    <p className="text-gray-800 dark:text-gray-200 font-medium italic">
+                        "{appreciation.message}"
+                    </p>
+
                     <div className="mt-3 flex gap-2">
                         <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-full uppercase tracking-wide">
                             {appreciation.category}
@@ -470,15 +476,32 @@ const PointsCard = ({ appreciation, onLike, onDelete }) => {
                 <div className="flex items-center gap-6 mt-4 pt-4 border-t border-orange-50">
                     <button
                         onClick={onLike}
-                        className={`flex items-center gap-2 transition-colors ${appreciation.user_liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+                        className={`flex items-center gap-2 transition-colors ${appreciation.user_liked
+                                ? 'text-red-500'
+                                : 'text-gray-500 hover:text-[#88AAFF]'
+                            }`}
                     >
-                        <svg className={`w-6 h-6 ${appreciation.user_liked ? 'fill-current' : 'fill-none stroke-current'}`} viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        <svg
+                            className={`w-6 h-6 ${appreciation.user_liked
+                                    ? 'fill-current'
+                                    : 'fill-none stroke-current'
+                                }`}
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                            />
                         </svg>
-                        <span className="text-sm font-medium">{appreciation.likes_count || 0} Likes</span>
+                        <span className="text-sm font-medium">
+                            {appreciation.likes_count || 0} Likes
+                        </span>
                     </button>
                 </div>
             </div>
+
             <CommentSection appreciation={appreciation} />
         </div>
     );
